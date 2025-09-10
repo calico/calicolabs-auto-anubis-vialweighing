@@ -6,7 +6,8 @@ This repository contains the software for automating the process of vial weighin
 
 We are open-sourcing this project with the hope that it can be a useful reference or a starting point for other labs looking to implement similar automation solutions.
 
-This project was developed by Perry Azougi in 2025 as part of his summer internship in the Lab Automation group at Calico Lifesciences LLC.  
+This project was developed by Perry Azougi in 2025 as part of his summer internship in the Lab Automation group at Calico Lifesciences LLC, with contributions from Elliot Mount, Andre Nguyen, David Conegliano, and Robert Keyser.
+
 
 ## Features
 
