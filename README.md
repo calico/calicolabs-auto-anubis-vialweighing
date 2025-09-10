@@ -2,9 +2,11 @@
 
 ## Overview
 
-This repository contains the software for automating the process of vial weighing using the **ANUBIS** robotic arm platform at Calico Labs. The goal of this project is to increase throughput, improve accuracy, and reduce the manual effort involved in weighing large numbers of vials (e.g., in Micronic racks) for various experimental assays.
+This repository contains the software for automating the process of vial weighing using the **ANUBIS** robotic arm platform at Calico. The goal of this project is to increase throughput, improve accuracy, and reduce the manual effort involved in weighing large numbers of vials (e.g., in Micronic racks) for various experimental assays.
 
 We are open-sourcing this project with the hope that it can be a useful reference or a starting point for other labs looking to implement similar automation solutions.
+
+This project was developed by Perry Azougi in 2025 as part of his summer internship in the Lab Automation group at Calico Lifesciences LLC.  
 
 ## Features
 
