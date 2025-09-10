@@ -1,0 +1,642 @@
+; 
+; GENERATED FILE. DO NOT EDIT!
+; 
+; setup information file
+; 
+; Copyright (c) 2015-2019 
+; 
+; built 2022-08-11 15:09:47
+;
+
+;******************************************************************************
+; Version Section
+;------------------------------------------------------------------------------
+[Version]
+Signature = "$Windows NT$"
+DriverVer = 08/11/2022,1.34.0.54587
+Provider = %S_Provider%
+CatalogFile = mt_generic_usb_serial.cat
+
+Class = Ports
+ClassGuid = {4d36e978-e325-11ce-bfc1-08002be10318}
+
+;******************************************************************************
+; Manufacturer
+;------------------------------------------------------------------------------
+[Manufacturer]
+%S_Mfg% = _Models,ntamd64
+
+;******************************************************************************
+; Device Models
+;------------------------------------------------------------------------------
+[_Models.ntamd64]
+"METTLER TOLEDO ICS4xx/ICS6xx" = _Install_0,USB\VID_0EB8&PID_1010
+"METTLER TOLEDO USB Serial Port" = _Install_1,USB\VID_0EB8&PID_2100
+"MT XPR/XSR Terminal" = _Install_2,USB\VID_0EB8&PID_2102&MI_00
+"MT SmartCheck" = _Install_3,USB\VID_0EB8&PID_210E
+"MT MX Balance" = _Install_4,USB\VID_0EB8&PID_2110&MI_00
+"MT MR Balance" = _Install_5,USB\VID_0EB8&PID_2111&MI_00
+"MT MA Balance" = _Install_6,USB\VID_0EB8&PID_2112
+"Spectra USB Serial Port" = _Install_7,USB\VID_0EB8&PID_2301&MI_00
+"Rainbow USB Serial Port" = _Install_8,USB\VID_0EB8&PID_2302
+"Rainbow USB Serial Port" = _Install_9,USB\VID_0EB8&PID_2302&MI_00
+"METTLER TOLEDO Sonic USB Serial Port" = _Install_10,USB\VID_0EB8&PID_D001
+"MT Titrator USB Driver" = _Install_11,USB\VID_0EB8&PID_E000
+"MT LiquiPhysics USB Driver" = _Install_12,USB\VID_0EB8&PID_E001
+"EasyPlus" = _Install_13,USB\VID_0EB8&PID_E008
+"InMotion Autosampler" = _Install_14,USB\VID_0EB8&PID_E009
+"MT UV-Vis USB Driver" = _Install_15,USB\VID_0EB8&PID_E00C
+"MT Easy D/R USB Driver" = _Install_16,USB\VID_0EB8&PID_E00E
+"MT Densito USB Driver" = _Install_17,USB\VID_0EB8&PID_E00F
+"MT EasyDose USB Driver" = _Install_18,USB\VID_0EB8&PID_E010
+"MT ThermalValues USB Driver" = _Install_19,USB\VID_0EB8&PID_E011
+"MT EasyPlus UV/VIS USB Driver" = _Install_20,USB\VID_0EB8&PID_E015&MI_00
+"MT pH-SevenExcellence USB Driver" = _Install_21,USB\VID_0EB8&PID_EA02
+"MT pH-SevenDirect USB Driver" = _Install_22,USB\VID_0EB8&PID_EA0B
+"METTLER TOLEDO BC Scale Virtual Serial Port" = _Install_23,USB\VID_0EB8&PID_F010
+
+[_Install_0.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_0.ntamd64.HW]
+AddReg = _AddReg_0
+
+[_Install_0.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_0.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_1.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_1.ntamd64.HW]
+AddReg = _AddReg_1
+
+[_Install_1.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_1.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_2.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_2.ntamd64.HW]
+AddReg = _AddReg_2
+
+[_Install_2.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_2.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_3.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_3.ntamd64.HW]
+AddReg = _AddReg_3
+
+[_Install_3.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_3.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_4.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_4.ntamd64.HW]
+AddReg = _AddReg_4
+
+[_Install_4.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_4.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_5.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_5.ntamd64.HW]
+AddReg = _AddReg_5
+
+[_Install_5.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_5.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_6.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_6.ntamd64.HW]
+AddReg = _AddReg_6
+
+[_Install_6.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_6.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_7.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_7.ntamd64.HW]
+AddReg = _AddReg_7
+
+[_Install_7.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_7.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_8.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_8.ntamd64.HW]
+AddReg = _AddReg_8
+
+[_Install_8.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_8.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_9.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_9.ntamd64.HW]
+AddReg = _AddReg_9
+
+[_Install_9.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_9.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_10.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_10.ntamd64.HW]
+AddReg = _AddReg_10
+
+[_Install_10.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_10.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_11.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_11.ntamd64.HW]
+AddReg = _AddReg_11
+
+[_Install_11.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_11.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_12.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_12.ntamd64.HW]
+AddReg = _AddReg_12
+
+[_Install_12.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_12.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_13.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_13.ntamd64.HW]
+AddReg = _AddReg_13
+
+[_Install_13.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_13.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_14.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_14.ntamd64.HW]
+AddReg = _AddReg_14
+
+[_Install_14.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_14.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_15.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_15.ntamd64.HW]
+AddReg = _AddReg_15
+
+[_Install_15.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_15.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_16.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_16.ntamd64.HW]
+AddReg = _AddReg_16
+
+[_Install_16.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_16.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_17.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_17.ntamd64.HW]
+AddReg = _AddReg_17
+
+[_Install_17.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_17.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_18.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_18.ntamd64.HW]
+AddReg = _AddReg_18
+
+[_Install_18.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_18.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_19.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_19.ntamd64.HW]
+AddReg = _AddReg_19
+
+[_Install_19.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_19.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_20.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_20.ntamd64.HW]
+AddReg = _AddReg_20
+
+[_Install_20.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_20.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_21.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_21.ntamd64.HW]
+AddReg = _AddReg_21
+
+[_Install_21.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_21.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_22.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_22.ntamd64.HW]
+AddReg = _AddReg_22
+
+[_Install_22.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_22.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+[_Install_23.ntamd64]
+CopyFiles = _CopyFiles_sys
+AddReg = _AddReg_Common
+
+[_Install_23.ntamd64.HW]
+AddReg = _AddReg_23
+
+[_Install_23.ntamd64.Services]
+AddService = mt_generic_usb_serial,0x00000002,_ServiceInst,_EventLog
+
+[_Install_23.ntamd64.Wdf]
+KmdfService = mt_generic_usb_serial,_WdfInstall
+
+;******************************************************************************
+; Service Installation
+;------------------------------------------------------------------------------
+[_ServiceInst]
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\mt_generic_usb_serial.sys
+DelReg = _DelReg_DriverParameters
+AddReg = _AddReg_DriverParameters,_AddReg_LicenseData
+
+[_EventLog]
+AddReg = _AddReg_EventLog
+
+[_AddReg_EventLog]
+HKR,,"EventMessageFile",%REG_EXPAND_SZ%,"%%SystemRoot%%\System32\IoLogMsg.dll;%%SystemRoot%%\System32\drivers\mt_generic_usb_serial.sys"
+HKR,,"TypesSupported",%REG_DWORD%,0x00000007
+
+;******************************************************************************
+; Common Settings
+;------------------------------------------------------------------------------
+[_AddReg_Common]
+; it's a serial port
+HKR,,"PortSubClass",%REG_BINARY%,01
+; default property page
+HKR,,"EnumPropPages32",,"MsPorts.dll,SerialPortPropPageProvider"
+
+;******************************************************************************
+; Device Settings for METTLER TOLEDO ICS4xx/ICS6xx
+;------------------------------------------------------------------------------
+[_AddReg_0]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for METTLER TOLEDO USB Serial Port
+;------------------------------------------------------------------------------
+[_AddReg_1]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT XPR/XSR Terminal
+;------------------------------------------------------------------------------
+[_AddReg_2]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT SmartCheck
+;------------------------------------------------------------------------------
+[_AddReg_3]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT MX Balance
+;------------------------------------------------------------------------------
+[_AddReg_4]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT MR Balance
+;------------------------------------------------------------------------------
+[_AddReg_5]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT MA Balance
+;------------------------------------------------------------------------------
+[_AddReg_6]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for Spectra USB Serial Port
+;------------------------------------------------------------------------------
+[_AddReg_7]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for Rainbow USB Serial Port
+;------------------------------------------------------------------------------
+[_AddReg_8]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for Rainbow USB Serial Port
+;------------------------------------------------------------------------------
+[_AddReg_9]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for METTLER TOLEDO Sonic USB Serial Port
+;------------------------------------------------------------------------------
+[_AddReg_10]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT Titrator USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_11]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT LiquiPhysics USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_12]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for EasyPlus
+;------------------------------------------------------------------------------
+[_AddReg_13]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for InMotion Autosampler
+;------------------------------------------------------------------------------
+[_AddReg_14]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT UV-Vis USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_15]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT Easy D/R USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_16]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT Densito USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_17]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT EasyDose USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_18]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT ThermalValues USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_19]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT EasyPlus UV/VIS USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_20]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT pH-SevenExcellence USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_21]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for MT pH-SevenDirect USB Driver
+;------------------------------------------------------------------------------
+[_AddReg_22]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; Device Settings for METTLER TOLEDO BC Scale Virtual Serial Port
+;------------------------------------------------------------------------------
+[_AddReg_23]
+HKR,"","AdditionalInterfaceGuid",%REG_SZ%,"{D33447B2-1AE1-4E88-84D7-F833CB48B114}"
+HKR,"","UsbOutZeroTermination",%REG_DWORD%,0x00000001
+
+;******************************************************************************
+; License data
+;------------------------------------------------------------------------------
+[_AddReg_LicenseData]
+; license data record, created 2019-01-18 08:50:23
+HKR, ParametersTL\License, format, %REG_DWORD%, 2
+HKR, ParametersTL\License, customer, %REG_DWORD%, 1050
+HKR, ParametersTL\License, options, %REG_DWORD%, 0x00000204  ; Version Vid 
+HKR, ParametersTL\License, begin, %REG_BINARY%, 00,00,00,00,00,00,00,00
+HKR, ParametersTL\License, end, %REG_BINARY%, 00,00,00,00,00,00,00,00
+HKR, ParametersTL\License, version, %REG_DWORD%, 0x00010022  ; v1.34
+HKR, ParametersTL\License, features, %REG_BINARY%, 00,00,00,00,00,00,00,00  ; 0x0000000000000000
+HKR, ParametersTL\License, restrictions, %REG_BINARY%, 00,00,00,00,00,00,00,00  ; 0x0000000000000000
+HKR, ParametersTL\License, salt, %REG_BINARY%, 4F,AA,A9,60,59,29,FF,14
+HKR, ParametersTL\License, tag, %REG_BINARY%, 5D,5D,01,9F,7E,D7,90,15,38,AD,22,16,E3,85,8A,C9,45,73,1E,36,07,A0,B7,23,B6,33,4E,7E,37,8A,49,FC
+HKR, ParametersTL\License\vidpid, count, %REG_DWORD%, 1
+HKR, ParametersTL\License\vidpid\0000, vidpid, %REG_DWORD%, 0x0EB80000  ; VID=0x0EB8 PID=0x0000
+
+;******************************************************************************
+; Driver parameters
+;------------------------------------------------------------------------------
+[_DelReg_DriverParameters]
+HKR,"Parameters"
+HKR,"ParametersTL"
+
+[_AddReg_DriverParameters]
+
+;******************************************************************************
+; Wdf Installation
+;------------------------------------------------------------------------------
+[_WdfInstall]
+KmdfLibraryVersion = 1.11
+
+;******************************************************************************
+; 0x00004000 = COPYFLG_IN_USE_RENAME, rename driver if in use
+;------------------------------------------------------------------------------
+[_CopyFiles_sys]
+mt_generic_usb_serial.sys,,,0x00004000
+
+;******************************************************************************
+; Destination Directories
+;------------------------------------------------------------------------------
+[DestinationDirs]
+_CopyFiles_sys = 12
+
+;******************************************************************************
+; Installation Disk
+;------------------------------------------------------------------------------
+[SourceDisksNames.amd64]
+1 = %S_DiskName%
+
+;******************************************************************************
+; Files on the Installation Disk
+;------------------------------------------------------------------------------
+[SourceDisksFiles.amd64]
+mt_generic_usb_serial.sys = 1
+
+;******************************************************************************
+; Strings
+;------------------------------------------------------------------------------
+[Strings]
+; 
+; Registry value types. DO NOT MODIFY!
+;
+REG_SZ = 0x00000000
+REG_EXPAND_SZ = 0x00020000
+REG_MULTI_SZ = 0x00010000
+REG_MULTI_SZ_APPEND = 0x00010008
+REG_DWORD = 0x00010001
+REG_BINARY = 0x00000001
+
+S_Provider = "Mettler-Toledo (Schweiz) GmbH"
+S_Mfg = "Mettler-Toledo (Schweiz) GmbH"
+S_DiskName = "Driver Installation Disk"
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; EOF ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
