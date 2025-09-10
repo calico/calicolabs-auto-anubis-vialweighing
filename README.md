@@ -1,4 +1,4 @@
-# **ANUBIS**: Automated Vial Weighing Platform
+# ANUBIS: Automated Vial Weighing Platform
 
 ## Overview
 
