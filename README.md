@@ -35,7 +35,7 @@ pip install pyinstaller
 To get a copy of the current code, clone the repository:
 
 ```bash
-git clone [https://github.com/calico/calicolabs-auto-anubis-vialweighing.git](https://github.com/calico/calicolabs-auto-anubis-vialweighing.git)
+git clone https://github.com/calico/calicolabs-auto-anubis-vialweighing.git
 cd calicolabs-auto-anubis-vialweighing
 ```
 
