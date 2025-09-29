@@ -636,7 +636,7 @@ class RobotUiApp:
         self.scanner_listener = None
         self.scanner_thread = None
         self.robot = None
-        self.gchat_webhook_url = "***WEBHOOK_REMOVED_FOR_SECURITY***"
+        self.gchat_webhook_url = ""
         
         self.rack_configs = self.load_rack_configs()
         self.nest_locations = ["Nest 1", "Nest 2", "Nest 3"]
