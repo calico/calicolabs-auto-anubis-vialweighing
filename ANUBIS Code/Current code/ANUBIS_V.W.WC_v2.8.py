@@ -412,7 +412,7 @@ class MettlerToledoController:
                 return True # Success after user intervention
             self.log("ERROR: Manual retry failed. Please check for obstructions again.")
 
-    def scale_adjustment_check(self, app_instance, user_name, timeout=30):
+    def scale_adjustment_check(self, app_instance, user_name, timeout=120):
         """
         Checks if the scale requires adjustment and performs it automatically.
         If it fails, it asks the user to retry or cancel.
@@ -425,27 +425,36 @@ class MettlerToledoController:
             self.log("Warning: Scale adjustment is required. Starting automatic adjustment...")
             
             while True: # Loop to allow for user retries
-                start_response = self._send_command("C3")
-                if start_response != "C3 B":
-                    self.log("ERROR: Failed to start scale adjustment.")
+                self.connection.reset_input_buffer()
+                self.connection.write("C3\r\n".encode('ascii'))
+                
+                # 1. Get the first response (should be C3 B)
+                first_resp = self.connection.readline().decode('ascii').strip()
+                if first_resp != "C3 B":
+                    self.log(f"ERROR: Failed to start scale adjustment. Scale said: {first_resp}")
                     return False
                 
                 app_instance.root.after(0, app_instance.send_gchat_notification, "Scale adjustment in progress...", user_name)
+                self.log("Adjustment in progress... Waiting for completion signal from scale...")
                 
-                self.log("Adjustment in progress... Waiting 70 seconds for adustment to complete.")
-                time.sleep(70) # Wait for the adjustment to likely complete.
-                
-                self.log("Checking for completion status...")
-                final_response = self._send_command("C0")
-                
-                if final_response == 'C0 A 1 0 ""':
-                    self.log("Success: Scale adjustment completed successfully.")
-                    app_instance.root.after(0, app_instance.send_gchat_notification, "Scale adjustment sucessful, zeroing scale then resuming process.", user_name)
-                    self.log("Zeroing scale")
-                    self._send_command("Z"); time.sleep(1)
-                    return True
-                
-                self.log(f"ERROR: Scale adjustment did not complete in time. Status was '{final_response}'. Asking user for intervention.")
+                # 2. Wait for the second response (C3 A or C3 I)
+                adjustment_success = False
+                start_time = time.time()
+                while time.time() - start_time < timeout:
+                    if self.connection.in_waiting > 0:
+                        final_resp = self.connection.readline().decode('ascii').strip()
+                        if final_resp == "C3 A":
+                            self.log("Success: Scale adjustment completed successfully.")
+                            app_instance.root.after(0, app_instance.send_gchat_notification, "Scale adjustment sucessful, zeroing scale then resuming process.", user_name)
+                            self.log("Zeroing scale")
+                            self._send_command("Z"); time.sleep(1)
+                            return True
+                        elif final_resp == "C3 I":
+                            self.log("ERROR: Scale aborted the adjustment (e.g., stability not attained).")
+                            break
+                    time.sleep(0.5)
+
+                self.log("ERROR: Scale adjustment failed or timed out. Asking user for intervention.")
                 app_instance.root.after(0, app_instance.send_gchat_notification, "Scale adjustment failed, user support is required.", user_name)
 
                 should_retry = messagebox.askretrycancel(
