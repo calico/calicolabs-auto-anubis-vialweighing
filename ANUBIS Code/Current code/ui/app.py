@@ -888,7 +888,13 @@ class RobotUiApp:
                                 self.log("Closing doors to prepare for one-time initial tare...")
                                 if not self.scale.close_doors(self, user_name):
                                     raise ProcessCancelledError("process ended due to door failure.") 
-                                check_for_events(); smart_sleep(1)
+                                
+                                self.log("Waiting for air currents and vibrations to settle before initial taring...")
+                                check_for_events(); smart_sleep(3)
+                                
+                                stable_weight, _ = self.scale.get_stable_weight()
+                                if stable_weight is None:
+                                    self.log("Warning: Could not get stable weight prior to initial tare. Proceeding anyway.")
                                 
                                 if not self.scale.tare():
                                     self.log("Warning: Initial tare operation failed. Proceeding, but weight may be inaccurate.")
@@ -1031,7 +1037,15 @@ class RobotUiApp:
                                     if not self.scale.close_doors(self, user_name):
                                         self.log("ERROR: Door failure during concurrent tare.")
                                         return
-                                    time.sleep(1)
+                                    
+                                    self.log("Waiting for air currents and vibrations to settle before taring...")
+                                    time.sleep(3) # Wait for physical settling
+                                    
+                                    # Ensure internal stability before taring
+                                    stable_weight, _ = self.scale.get_stable_weight()
+                                    if stable_weight is None:
+                                        self.log("Warning: Could not get stable weight prior to tare. Proceeding anyway.")
+                                        
                                     if not self.scale.tare():
                                         self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
                                     time.sleep(1)
