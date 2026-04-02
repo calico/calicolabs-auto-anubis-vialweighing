@@ -637,6 +637,12 @@ class RobotUiApp:
         def check_for_events():
             self.pause_event.wait()
             if self.cancel_event.is_set(): raise ProcessCancelledError("Process cancelled by user.")
+            
+        def smart_sleep(duration):
+            start = time.time()
+            while time.time() - start < duration:
+                check_for_events()
+                time.sleep(min(0.1, duration - (time.time() - start)))
 
         try:
             self.log(f"Connecting..."); self.robot.Connect(address=self.common_params["ROBOT_IP"]); check_for_events()
@@ -786,7 +792,7 @@ class RobotUiApp:
                             self.robot.MoveLin(*retry_approach_pose); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); 
                             self.robot.MoveLin(*current_target_pose); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); time.sleep(.2)
+                            self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.2)
 
                               
                         
@@ -854,9 +860,9 @@ class RobotUiApp:
                             if self.cycle_count % ZERO_INT == 0: # zeros scale every column completed
                               if not self.scale.close_doors(self, user_name):
                                raise ProcessCancelledError("process ended due to door failure.") 
-                              check_for_events(); time.sleep(3)
+                              check_for_events(); smart_sleep(3)
                               self.log("zeroing scale")
-                              self.scale.zero(); check_for_events();time.sleep(6)
+                              self.scale.zero(); check_for_events();smart_sleep(6)
                             
                             vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
                             self.log(f"   -> Scan received: {scanned_barcode} for vial {vial_coordinate}. Resuming...")
@@ -874,13 +880,13 @@ class RobotUiApp:
                             self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events(); self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
                             self.robot.SetCartLinVel(300) ## IF arm moves to fast then scale base at risk of unhooking
                             self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); time.sleep(.5)
+                            self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                             self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
 
                             if not self.scale.close_doors(self, user_name):
                               raise ProcessCancelledError("User chose to end the process due to door failure.") 
-                            check_for_events(); time.sleep(1) # put the sleep b/c the sensors automatically think doors are close when apart but it take second to fully close
+                            check_for_events(); smart_sleep(1) # put the sleep b/c the sensors automatically think doors are close when apart but it take second to fully close
                             
                             # get a stable weight
                             stable_weight, stable_unit = self.scale.get_stable_weight();check_for_events()
@@ -902,13 +908,13 @@ class RobotUiApp:
 
                                     self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); time.sleep(.5)
+                                    self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                                     self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
 
                                     if not self.scale.close_doors(self, user_name):
                                         raise ProcessCancelledError("User chose to end the process due to door failure.")
-                                    check_for_events(); time.sleep(1)
+                                    check_for_events(); smart_sleep(1)
 
                                     self.log("   -> Resetting the scale...")
                                     self.scale.power_on_or_reset(); check_for_events()
@@ -922,13 +928,13 @@ class RobotUiApp:
                                     self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.SetCartLinVel(300)
                                     self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); time.sleep(.5)
+                                    self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                                     self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
 
                                     if not self.scale.close_doors(self, user_name): # Corrected call
                                         raise ProcessCancelledError("User chose to end the process due to door failure.")
-                                    check_for_events(); time.sleep(1)
+                                    check_for_events(); smart_sleep(1)
                                     
                                     # --------------------------------------------------------------------
                                     # B. RETRY WEIGHING: Attempt to get weight after recovery
@@ -976,7 +982,7 @@ class RobotUiApp:
                             #picks vial up from scale and moves back to original postion
                             self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); time.sleep(.5)                            
+                            self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)                            
                             self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
                             self.robot.MovePose(*nest_params['intermediate_pose_2']); self.robot.WaitIdle(); check_for_events()
@@ -994,7 +1000,7 @@ class RobotUiApp:
                             self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events()
 
                             last_completed_pose = self.robot.GetPose()
-                            self.log("   -> Cycle complete.\n"); time.sleep(.5)
+                            self.log("   -> Cycle complete.\n"); smart_sleep(.5)
 
                     if last_completed_pose is not None:
                         self.log(f"-> Finished rack {nest_params['name']}. Lifting up before next task.")
