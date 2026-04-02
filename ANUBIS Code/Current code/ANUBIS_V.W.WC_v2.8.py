@@ -8,6 +8,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from ui.app import RobotUiApp, show_splash
+from core.config import APP_CONFIG
 import customtkinter
 
 if __name__ == "__main__":
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     root = customtkinter.CTk()
 
     # 2. Define the path to your splash image and the duration
-    SPLASH_IMAGE_PATH = r"C:\Users\balance\Documents\MECA500 Code\Code\Completed Software\Anubis.png"
+    SPLASH_IMAGE_PATH = APP_CONFIG["paths"]["splash_image"]
     SPLASH_DURATION_MS = 3500 # 3.5 seconds
 
     # 3. Call the splash screen function.

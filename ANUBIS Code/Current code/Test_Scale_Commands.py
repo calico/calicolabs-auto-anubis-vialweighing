@@ -20,6 +20,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from hardware.scale import MettlerToledoController
+from core.config import APP_CONFIG
 def write_formatted_csv(filename, collected_weights):
     """Writes the collected weights into the specified two-column grid format."""
     if not collected_weights:
@@ -65,8 +66,8 @@ def print_help():
 # --- Main Execution ---
 if __name__ == "__main__":
     # --- Configuration ---
-    SCALE_PORT = 'COM4' # IMPORTANT: Change this to your scale's COM port
-    SCALE_BAUD = 9600
+    SCALE_PORT = APP_CONFIG["hardware"]["scale_port"]
+    SCALE_BAUD = APP_CONFIG["hardware"]["scale_baudrate"]
     FORMATTED_LOG_FILENAME = 'formatted_weighing_log.csv'
 
     all_logged_weights = []

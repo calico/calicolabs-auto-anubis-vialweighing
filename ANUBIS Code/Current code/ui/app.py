@@ -20,6 +20,7 @@ import mecademicpy.robot as mdr
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.config import APP_CONFIG
 from core.utils import ProcessCancelledError, coordinate_to_index, index_to_coordinate
 from hardware.arduino import ArduinoController
 from hardware.scale import MettlerToledoController
@@ -95,24 +96,23 @@ class RobotUiApp:
         self.scanner_listener = None
         self.scanner_thread = None
         self.robot = None
-        self.gchat_webhook_url = ""
+        self.gchat_webhook_url = APP_CONFIG["notifications"]["gchat_webhook_url"]
         
         self.rack_configs = self.load_rack_configs()
         self.nest_locations = ["Nest 1", "Nest 2", "Nest 3"]
 
         self.common_params = {
-            "ROBOT_IP": "192.168.0.100",
-            "SCALE_PORT": "COM3",
-            "ARDUINO_PORT": "COM4",
+            "ROBOT_IP": APP_CONFIG["hardware"]["robot_ip"],
+            "SCALE_PORT": APP_CONFIG["hardware"]["scale_port"],
+            "ARDUINO_PORT": APP_CONFIG["hardware"]["arduino_port"],
             "home_position_joints": [0, 0, 0, 0, 0, 0],
-            #intermediate postions are after the barcode scan to avoid running into the glass panels
             "intermediate_pose_2": [89.363144, 85.359945, 226.828754, -85.065301, 46.75398, 88.841213],
             "intermediate_pose_3": [3.45444, 114.014649, 233.783148, -89.652968, 1.924481, 88.717395],
             "intermediate_pose_4": [-0.768729, 261.00615, 160, -90, -0.16875, 90],
             "intermediate_pose_nest3_safety": [-90,0,0,0,0,0],
             "scanner_pose": [256.324502, 75.744832, 205.200681, -87.478169, 73.592046, 88.744038],
-            "LOG_FILE_PATH": r"C:\Users\balance\Documents\Log_Files",
-            "CSV_FILE_PATH": r"C:\Users\balance\Documents\Rack_CSV_Files"
+            "LOG_FILE_PATH": APP_CONFIG["paths"]["log_files"],
+            "CSV_FILE_PATH": APP_CONFIG["paths"]["csv_files"]
         }
         self.scanner_params = {"CSV_HEADER": ['Coordinate', 'Scanned Barcode','Vial Weight']}
 
@@ -124,7 +124,7 @@ class RobotUiApp:
 
     def load_rack_configs(self):
         """Loads all .json configuration files from the specified directory."""
-        configs_path = r"C:\Users\balance\Documents\MECA500 Code\Code\RackLibrary"
+        configs_path = APP_CONFIG["paths"]["rack_library"]
         if not os.path.exists(configs_path):
             self.log(f"Warning: Configuration directory '{configs_path}' not found.")
             return {}

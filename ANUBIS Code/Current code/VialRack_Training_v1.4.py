@@ -16,6 +16,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from core.utils import ProcessCancelledError, coordinate_to_index, index_to_coordinate
+from core.config import APP_CONFIG
 class RobotTrainingApp:
     def __init__(self, root):
         self.root = root
@@ -31,7 +32,7 @@ class RobotTrainingApp:
         self.is_paused = False
 
         self.common_params = {
-            "ROBOT_IP": "192.168.0.100",
+            "ROBOT_IP": APP_CONFIG["hardware"]["robot_ip"],
             "home_position_joints": [-90, 0, 0, 0, 0, 0],
         }
 
