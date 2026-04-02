@@ -651,6 +651,7 @@ class RobotUiApp:
         self.arduino = ArduinoController(port=self.common_params["ARDUINO_PORT"], baudrate=115200)
         self.scale = MettlerToledoController(port=self.common_params["SCALE_PORT"], log_callback=self.log,arduino_controller=self.arduino, app_instance=self)
         csv_filepath = None
+        tare_thread = None
         
         def check_for_events():
             self.pause_event.wait()
@@ -855,6 +856,13 @@ class RobotUiApp:
                             self.cycle_count += 1
                             self.log(f"--- Starting Cycle #{self.cycle_count} ---")
 
+                            # Join the concurrent tare thread from the previous cycle before interacting with the scale
+                            if tare_thread is not None and tare_thread.is_alive():
+                                self.log("Waiting for scale to finish concurrent tare from previous cycle...")
+                                while tare_thread.is_alive():
+                                    check_for_events()
+                                    time.sleep(0.1)
+
                             # Check if it's time for a scale adjustment
                             if self.cycle_count == 1 or self.cycle_count % 10 == 0:
                                self.log(f"Cycle {self.cycle_count} is a multiple of 10. Performing scale adjustment check.")
@@ -1017,14 +1025,22 @@ class RobotUiApp:
                             self.robot.SetCartLinVel(400) ## Restore travel speed
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
                             
-                            # Close doors and tare the scale for the NEXT vial to increase speed
-                            self.log("Closing doors and taring scale for the next vial...")
-                            if not self.scale.close_doors(self, user_name):
-                                raise ProcessCancelledError("User chose to end the process due to door failure.")
-                            check_for_events(); smart_sleep(1)
-                            if not self.scale.tare():
-                                self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
-                            check_for_events(); smart_sleep(1)
+                            # Close doors and tare the scale for the NEXT vial concurrently
+                            def concurrent_tare():
+                                try:
+                                    if not self.scale.close_doors(self, user_name):
+                                        self.log("ERROR: Door failure during concurrent tare.")
+                                        return
+                                    time.sleep(1)
+                                    if not self.scale.tare():
+                                        self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
+                                    time.sleep(1)
+                                except Exception as e:
+                                    self.log(f"Concurrent tare error: {e}")
+
+                            self.log("Starting background thread to close doors and tare scale for the next vial...")
+                            tare_thread = threading.Thread(target=concurrent_tare, daemon=True)
+                            tare_thread.start()
 
                             self.robot.MovePose(*nest_params['intermediate_pose_2']); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
