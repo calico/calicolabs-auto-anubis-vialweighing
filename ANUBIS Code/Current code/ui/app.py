@@ -292,6 +292,24 @@ class RobotUiApp:
         else:
             widgets['options_frame'].pack_forget()
 
+    def safe_askretrycancel(self, title, message):
+        """Thread-safe way to ask the user to retry or cancel from a background thread."""
+        result_queue = queue.Queue()
+        def show():
+            res = messagebox.askretrycancel(title, message)
+            result_queue.put(res)
+        self.root.after(0, show)
+        return result_queue.get()
+
+    def safe_askokcancel(self, title, message):
+        """Thread-safe way to ask the user for ok or cancel from a background thread."""
+        result_queue = queue.Queue()
+        def show():
+            res = messagebox.askokcancel(title, message)
+            result_queue.put(res)
+        self.root.after(0, show)
+        return result_queue.get()
+
     def log(self, message):
         self.log_queue.put(message)
 
@@ -847,7 +865,7 @@ class RobotUiApp:
                                    self.log(popup_message)
                                    self.root.after(0, self.send_gchat_notification, "Manual scale adjustment required. Process is paused.", user_name)
                                    # PAUSE and show a popup. Code execution will stop here until the user clicks "OK".
-                                   user_choice = messagebox.askokcancel("Manual Adjustment Required 🔧", popup_message)
+                                   user_choice = self.safe_askokcancel("Manual Adjustment Required 🔧", popup_message)
                                    # Handle the choice. If user clicks "Cancel" (user_choice is False)...
                                    if not user_choice:
                                      cancel_message = "Process cancelled by user during manual scale adjustment."
@@ -958,7 +976,7 @@ class RobotUiApp:
                                     notification_message = "Weighing failed after recovery. Process is paused pending user input."
                                     self.root.after(0, self.send_gchat_notification, notification_message, user_name)
                                     # 2. Show the popup and wait for the user's choice
-                                    should_retry = messagebox.askretrycancel(popup_title, popup_message)
+                                    should_retry = self.safe_askretrycancel(popup_title, popup_message)
                                     # 3. Handle the user's choice
                                     if should_retry:
                                         # If the user clicks "Retry", log it and the 'while' loop will continue.

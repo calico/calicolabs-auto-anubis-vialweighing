@@ -113,7 +113,7 @@ class MettlerToledoController:
         error_msg = "Scale is unstable. User support is required to continue."
         if self.app:
             self.app.root.after(0, self.app.send_gchat_notification, error_msg, user_name)
-        should_retry = messagebox.askretrycancel(
+        should_retry = (self.app.safe_askretrycancel if self.app else messagebox.askretrycancel)(
             title="Scale Unstable Error",
             message=("The scale could not get a stable weight after multiple attempts.\n\n"
                     "- Click 'Retry' to clear the error and attempt another reading.\n"
@@ -158,7 +158,7 @@ class MettlerToledoController:
             if self.app and user_name:
                 self.app.root.after(0, self.app.send_gchat_notification, "(open) Door obstruction detected, User support is required to continue.", user_name)
             
-            should_retry = messagebox.askretrycancel(
+            should_retry = (self.app.safe_askretrycancel if self.app else messagebox.askretrycancel)(
                 title="Scale Open Door Error",
                 message="The scale doors failed to open after an automatic retry. Please check for obstructions.\n\n- Click 'Retry' to try opening them again.\n- Click 'Cancel' to stop the entire process.")
             if not should_retry:
@@ -209,7 +209,7 @@ class MettlerToledoController:
             if self.app and user_name:
                 self.app.root.after(0, self.app.send_gchat_notification, "(Closed) Door obstruction detected, User support is required to continue.", user_name)
             
-            should_retry = messagebox.askretrycancel(
+            should_retry = (self.app.safe_askretrycancel if self.app else messagebox.askretrycancel)(
                 title="Scale Closed Door Error",
                 message="The scale doors failed to close after an automatic retry. Please check for obstructions.\n\n- Click 'Retry' to try closing them again.\n- Click 'Cancel' to stop the entire process.")
             if not should_retry:
@@ -276,7 +276,7 @@ class MettlerToledoController:
                 if self.app and user_name:
                     self.app.root.after(0, self.app.send_gchat_notification, "Scale adjustment failed, user support is required.", user_name)
 
-                should_retry = messagebox.askretrycancel(
+                should_retry = (self.app.safe_askretrycancel if self.app else messagebox.askretrycancel)(
                     title="Scale Adjustment Error",
                     message="The scale failed to adjust automatically after a timeout. This could be due to instability or an internal error.\n\n- Click 'Retry' to try the adjustment again.\n- Click 'Cancel' to stop the entire process."
                 )
