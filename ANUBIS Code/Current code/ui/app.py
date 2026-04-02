@@ -1031,30 +1031,31 @@ class RobotUiApp:
                             self.robot.SetCartLinVel(400) ## Restore travel speed
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
                             
-                            # Close doors and tare the scale for the NEXT vial concurrently
-                            def concurrent_tare():
-                                try:
-                                    if not self.scale.close_doors(self, user_name):
-                                        self.log("ERROR: Door failure during concurrent tare.")
-                                        return
-                                    
-                                    self.log("Waiting for air currents and vibrations to settle before taring...")
-                                    time.sleep(3) # Wait for physical settling
-                                    
-                                    # Ensure internal stability before taring
-                                    stable_weight, _ = self.scale.get_stable_weight()
-                                    if stable_weight is None:
-                                        self.log("Warning: Could not get stable weight prior to tare. Proceeding anyway.")
+                            # Close doors and tare the scale for the NEXT vial concurrently (skip if this is the last vial)
+                            if i < end_index:
+                                def concurrent_tare():
+                                    try:
+                                        if not self.scale.close_doors(self, user_name):
+                                            self.log("ERROR: Door failure during concurrent tare.")
+                                            return
                                         
-                                    if not self.scale.tare():
-                                        self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
-                                    time.sleep(1)
-                                except Exception as e:
-                                    self.log(f"Concurrent tare error: {e}")
+                                        self.log("Waiting for air currents and vibrations to settle before taring...")
+                                        time.sleep(3) # Wait for physical settling
+                                        
+                                        # Ensure internal stability before taring
+                                        stable_weight, _ = self.scale.get_stable_weight()
+                                        if stable_weight is None:
+                                            self.log("Warning: Could not get stable weight prior to tare. Proceeding anyway.")
+                                            
+                                        if not self.scale.tare():
+                                            self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
+                                        time.sleep(1)
+                                    except Exception as e:
+                                        self.log(f"Concurrent tare error: {e}")
 
-                            self.log("Starting background thread to close doors and tare scale for the next vial...")
-                            tare_thread = threading.Thread(target=concurrent_tare, daemon=True)
-                            tare_thread.start()
+                                self.log("Starting background thread to close doors and tare scale for the next vial...")
+                                tare_thread = threading.Thread(target=concurrent_tare, daemon=True)
+                                tare_thread.start()
 
                             self.robot.MovePose(*nest_params['intermediate_pose_2']); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
