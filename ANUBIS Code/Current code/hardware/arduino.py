@@ -14,13 +14,16 @@ class ArduinoController:
 
     def _get_statuses(self):
         """
-        Reads and parses a single line from the Arduino.
+        Requests, reads, and parses a single line from the Arduino.
         """
         if not self.connection or not self.connection.is_open:
             return None
         try:
             self.connection.reset_input_buffer()
-            time.sleep(0.05) # Give the Arduino a brief moment to send a fresh line
+            # Send the request ping
+            self.connection.write(b'?')
+            
+            # Readline will wait until a newline is received or timeout expires
             raw_line = self.connection.readline().decode('utf-8').strip()
             
             if not raw_line:

@@ -11,24 +11,29 @@ void setup() {
 }
 
 void loop() {
-  // Read the state of both sensors
-  int state1 = digitalRead(reedPin1);
-  int state2 = digitalRead(reedPin2);
+  // Only send data when the Python script requests it
+  if (Serial.available() > 0) {
+    char incomingByte = Serial.read();
+    
+    // Check if the incoming byte is the request character '?'
+    if (incomingByte == '?') {
+      // Read the state of both sensors
+      int state1 = digitalRead(reedPin1);
+      int state2 = digitalRead(reedPin2);
 
-  // Determine the status string for the first sensor (LOW = Open)
-  String status1 = (state1 == LOW) ? "Open" : "Closed";
-  
-  // Determine the status string for the second sensor (LOW = Open)
-  String status2 = (state2 == LOW) ? "Open" : "Closed";
+      // Determine the status string for the first sensor (LOW = Open)
+      String status1 = (state1 == LOW) ? "Open" : "Closed";
+      
+      // Determine the status string for the second sensor (LOW = Open)
+      String status2 = (state2 == LOW) ? "Open" : "Closed";
 
-  // Send the combined status string with the correct pin numbers
-  // Format: "pin5:State,pin7:State"
-  Serial.print("pin5:");
-  Serial.print(status1);
-  Serial.print(",");
-  Serial.print("pin7:");
-  Serial.println(status2);
-
-  // Wait half a second before sending the next update
-  delay(100);
+      // Send the combined status string with the correct pin numbers
+      // Format: "pin5:State,pin7:State"
+      Serial.print("pin5:");
+      Serial.print(status1);
+      Serial.print(",");
+      Serial.print("pin7:");
+      Serial.println(status2);
+    }
+  }
 }
