@@ -900,16 +900,19 @@ class RobotUiApp:
                             # Moves vial into scale
                             # I put a timestamp here as an inital time test for opening the doors but now i left it just to see how long it takes to cycle through
                             self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events(); self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
-                            self.robot.SetCartLinVel(300) ## IF arm moves to fast then scale base at risk of unhooking
+                            self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield to prevent aerodynamic turbulence
                             self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                             self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
+                            self.robot.SetCartLinVel(400) ## Restore travel speed
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
 
                             if not self.scale.close_doors(self, user_name):
-                              raise ProcessCancelledError("User chose to end the process due to door failure.") 
-                            check_for_events(); smart_sleep(1) # put the sleep b/c the sensors automatically think doors are close when apart but it take second to fully close
-                            
+                              raise ProcessCancelledError("User chose to end the process due to door failure.")
+                            check_for_events()
+                            self.log("Waiting 3 seconds for air currents and vibrations to settle...")
+                            smart_sleep(3) # Increased settling time for higher precision
+
                             # get a stable weight
                             stable_weight, stable_unit = self.scale.get_stable_weight();check_for_events()
                             #If the initial attempt fails, start the recovery and retry loop
@@ -929,9 +932,11 @@ class RobotUiApp:
                                     check_for_events()
 
                                     self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
+                                    self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
                                     self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                                     self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
+                                    self.robot.SetCartLinVel(400) ## Restore travel speed
                                     self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
 
                                     if not self.scale.close_doors(self, user_name):
@@ -940,24 +945,26 @@ class RobotUiApp:
 
                                     self.log("   -> Resetting the scale...")
                                     self.scale.power_on_or_reset(); check_for_events()
-                                    self.scale.zero(); check_for_events()
-                                    
-                                    if not self.scale.open_doors(self, user_name): 
+                                    self.scale.tare(); check_for_events()
+
+                                    if not self.scale.open_doors(self, user_name):
                                         raise ProcessCancelledError("Process ended due to door failure.")
                                     check_for_events()
 
                                     self.log("   -> Placing vial back on the scale...")
                                     self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.SetCartLinVel(300)
+                                    self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
                                     self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                                     self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
+                                    self.robot.SetCartLinVel(400) ## Restore travel speed
                                     self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
 
                                     if not self.scale.close_doors(self, user_name): # Corrected call
                                         raise ProcessCancelledError("User chose to end the process due to door failure.")
-                                    check_for_events(); smart_sleep(1)
-                                    
+                                    check_for_events()
+                                    self.log("Waiting 3 seconds for air currents and vibrations to settle...")
+                                    smart_sleep(3) # Increased settling time for higher precision                                    
                                     # --------------------------------------------------------------------
                                     # B. RETRY WEIGHING: Attempt to get weight after recovery
                                     # --------------------------------------------------------------------
@@ -1003,9 +1010,11 @@ class RobotUiApp:
                             
                             #picks vial up from scale and moves back to original postion
                             self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
+                            self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
                             self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)                            
                             self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
+                            self.robot.SetCartLinVel(400) ## Restore travel speed
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
                             
                             # Close doors and tare the scale for the NEXT vial to increase speed
