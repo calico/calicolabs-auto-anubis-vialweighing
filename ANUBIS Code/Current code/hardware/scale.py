@@ -130,6 +130,23 @@ class MettlerToledoController:
         self._send_command("Z")
         time.sleep(1)
 
+    def tare(self, max_retries=7):
+        self.log("   -> Taring scale...")
+        for attempt in range(max_retries):
+            response = self._send_command("T")
+            if response and response.startswith("T S"):
+                try:
+                    parts = response.split()
+                    weight = float(parts[2])
+                    unit = parts[3] if len(parts) > 3 else 'g'
+                    self.log(f"   <- Scale tared. Tare weight: {weight} {unit}")
+                    return True
+                except (IndexError, ValueError): pass
+            self.log(f"     - Attempt {attempt + 1}: Unstable or executing. Retrying tare...")
+            time.sleep(1)
+        self.log("   <- Failed to tare scale.")
+        return False
+
     def open_doors(self, app_instance=None, user_name=None):
         if app_instance:
             self.app = app_instance

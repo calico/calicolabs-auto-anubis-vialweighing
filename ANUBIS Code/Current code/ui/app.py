@@ -875,12 +875,15 @@ class RobotUiApp:
                             self.log("Scale adjustment check complete. Resuming operations.")
                             check_for_events() # Assuming you want to check for events after this pause
 
-                            if self.cycle_count % ZERO_INT == 0: # zeros scale every column completed
-                              if not self.scale.close_doors(self, user_name):
-                               raise ProcessCancelledError("process ended due to door failure.") 
-                              check_for_events(); smart_sleep(3)
-                              self.log("zeroing scale")
-                              self.scale.zero(); check_for_events();smart_sleep(6)
+                            # Tare the scale before loading every vial
+                            self.log("Closing doors to prepare for taring...")
+                            if not self.scale.close_doors(self, user_name):
+                                raise ProcessCancelledError("process ended due to door failure.") 
+                            check_for_events(); smart_sleep(1)
+                            
+                            if not self.scale.tare():
+                                self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
+                            check_for_events(); smart_sleep(1)
                             
                             vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
                             self.log(f"   -> Scan received: {scanned_barcode} for vial {vial_coordinate}. Resuming...")
