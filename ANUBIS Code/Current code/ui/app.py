@@ -875,15 +875,16 @@ class RobotUiApp:
                             self.log("Scale adjustment check complete. Resuming operations.")
                             check_for_events() # Assuming you want to check for events after this pause
 
-                            # Tare the scale before loading every vial
-                            self.log("Closing doors to prepare for taring...")
-                            if not self.scale.close_doors(self, user_name):
-                                raise ProcessCancelledError("process ended due to door failure.") 
-                            check_for_events(); smart_sleep(1)
-                            
-                            if not self.scale.tare():
-                                self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
-                            check_for_events(); smart_sleep(1)
+                            # One-time tare before loading the first vial
+                            if self.cycle_count == 1:
+                                self.log("Closing doors to prepare for one-time initial tare...")
+                                if not self.scale.close_doors(self, user_name):
+                                    raise ProcessCancelledError("process ended due to door failure.") 
+                                check_for_events(); smart_sleep(1)
+                                
+                                if not self.scale.tare():
+                                    self.log("Warning: Initial tare operation failed. Proceeding, but weight may be inaccurate.")
+                                check_for_events(); smart_sleep(1)
                             
                             vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
                             self.log(f"   -> Scan received: {scanned_barcode} for vial {vial_coordinate}. Resuming...")
@@ -1006,6 +1007,16 @@ class RobotUiApp:
                             self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)                            
                             self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                            
+                            # Close doors and tare the scale for the NEXT vial to increase speed
+                            self.log("Closing doors and taring scale for the next vial...")
+                            if not self.scale.close_doors(self, user_name):
+                                raise ProcessCancelledError("User chose to end the process due to door failure.")
+                            check_for_events(); smart_sleep(1)
+                            if not self.scale.tare():
+                                self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
+                            check_for_events(); smart_sleep(1)
+
                             self.robot.MovePose(*nest_params['intermediate_pose_2']); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
 
