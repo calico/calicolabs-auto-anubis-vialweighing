@@ -913,14 +913,14 @@ class RobotUiApp:
 
                             # Moves vial into scale
                             # I put a timestamp here as an inital time test for opening the doors but now i left it just to see how long it takes to cycle through
+                            self.robot.SetCartLinVel(50) ## Drastically reduce speed before entering the draft shield to prevent aerodynamic turbulence
                             self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events(); self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
-                            self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield to prevent aerodynamic turbulence
                             self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                             self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
-                            self.robot.SetCartLinVel(400) ## Restore travel speed
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
-
+                            self.robot.SetCartLinVel(400) ## Restore travel speed when fully outside the draft shield
+                            
                             if not self.scale.close_doors(self, user_name):
                               raise ProcessCancelledError("User chose to end the process due to door failure.")
                             check_for_events()
