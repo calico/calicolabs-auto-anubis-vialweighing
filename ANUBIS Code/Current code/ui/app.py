@@ -78,10 +78,6 @@ def show_splash(main_window, image_path, duration_ms):
 class RobotUiApp:
     
     def __init__(self, root):
-        # ... your other initializations ...
-        self.cycle_count = 0  # for checking if the scale needs an adjustment
-
-    def __init__(self, root):
         self.root = root # the main window of the gui
         self.root.title("Anubis Control Interface")
         self.root.geometry("1000x700")
@@ -700,7 +696,6 @@ class RobotUiApp:
                     check_for_events()
 
                 # Json parameters and position parameters
-                ZERO_INT = nest_params.get('row_reset_interval', 6)
                 GRIPPER_OPEN = nest_params.get('gripper_open_dist', 2.7)
                 GRIPPER_CLOSE = nest_params.get('gripper_close_dist', 0)
                 LIFT_UP_MM = nest_params.get('lift_up_mm', 50.0)
@@ -1094,16 +1089,20 @@ class RobotUiApp:
             if self.robot and self.robot.IsConnected():
                 try:
                     self.robot.WaitIdle()
-                    self.log("Opening gripper...");
-                    self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle()
-                    current_joints = self.robot.GetJoints()
-                    self.log(f"Current joints: {[f'{j:.2f}' for j in current_joints]}")
-                    cancel_pose_1 = [current_joints[0], -25.96, 64.97, -0.83, -40.07, -2.39]  ## safety positon 
-                    cancel_pose_2 = [0, -25.96, 64.97, -0.83, -40.07, -2.39]
-                    self.log(f"Moving to intermediate cancel pose (J1={current_joints[0]:.2f})...")
-                    self.robot.MoveJoints(*cancel_pose_1); self.robot.WaitIdle()
-                    self.log("Moving J1 to 0...")
-                    self.robot.MoveJoints(*cancel_pose_2); self.robot.WaitIdle()
+                    self.log("Opening gripper...")
+                    safe_gripper_open = locals().get('GRIPPER_OPEN', 2.7)
+                    self.robot.MoveGripper(safe_gripper_open); self.robot.WaitIdle()
+                    
+                    self.log("Retracting linearly upwards to clear obstacles...")
+                    try:
+                        current_pose = self.robot.GetPose()
+                        if current_pose:
+                            safe_z_pose = list(current_pose)
+                            safe_z_pose[2] += 50.0 # Move 50mm UP
+                            self.robot.MoveLin(*safe_z_pose); self.robot.WaitIdle()
+                    except mdr.MecademicException as e_pose:
+                        self.log(f"Warning: Could not perform linear retraction: {e_pose}")
+
                     self.log("Moving to final home position...")
                     self.robot.MoveJoints(*self.common_params["home_position_joints"]); self.robot.WaitIdle()
                     self.log("-> Robot returned to home position safely.")
