@@ -704,7 +704,7 @@ class RobotUiApp:
                 # On starting a Nest 3 task, move to the safety position first.
                 if nest_params['name'] == 'Nest 3':
                     self.log("   -> Moving to Nest 3 safety position to begin task.")
-                    move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
+                    move_joints(nest_params["intermediate_pose_nest3_safety"])
 
                 # Json parameters and position parameters
                 GRIPPER_OPEN = nest_params.get('gripper_open_dist', 2.7)
@@ -791,7 +791,7 @@ class RobotUiApp:
                         # If leaving from Nest 3, move to a specific safety pose first.
                         if nest_params['name'] == 'Nest 3':
                             self.log("   -> Moving to Nest 3 safety position before proceeding.")
-                            move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
+                            move_joints(nest_params["intermediate_pose_nest3_safety"])
 
                         move_joints(home_position_joints)
                         move_pose(dynamic_scanner_pose)
@@ -807,7 +807,7 @@ class RobotUiApp:
                             
                             if nest_params['name'] == 'Nest 3':
                                 self.log("   -> (Retry) Moving to Nest 3 safety position before re-gripping.")
-                                move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
+                                move_joints(nest_params["intermediate_pose_nest3_safety"])
                             
                             move_pose(approach_pose)
                             move_lin(retry_approach_pose)
@@ -821,7 +821,7 @@ class RobotUiApp:
                             
                             if nest_params['name'] == 'Nest 3':
                                 self.log("   -> (Retry) Moving to Nest 3 safety position before proceeding to scanner.")
-                                move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
+                                move_joints(nest_params["intermediate_pose_nest3_safety"])
 
                             move_joints(home_position_joints)
                             move_pose(dynamic_scanner_pose)
@@ -836,7 +836,7 @@ class RobotUiApp:
                                 
                                 if nest_params['name'] == 'Nest 3':
                                     self.log("   -> (Failed Scan) Moving to Nest 3 safety position before returning vial.")
-                                    move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
+                                    move_joints(nest_params["intermediate_pose_nest3_safety"])
 
                                 move_pose(approach_pose)
                                 move_lin(retry_approach_pose)
@@ -1060,7 +1060,7 @@ class RobotUiApp:
 
                             if nest_params['name'] == 'Nest 3':
                                 self.log("   -> Moving to Nest 3 safety position before returning vial from scale.")
-                                move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
+                                move_joints(nest_params["intermediate_pose_nest3_safety"])
 
                             move_pose(approach_pose)
                             self.robot.SetCartLinVel(400)
