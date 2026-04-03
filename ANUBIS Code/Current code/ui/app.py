@@ -945,14 +945,14 @@ class RobotUiApp:
                                         raise ProcessCancelledError("Process ended due to door failure.")
                                     check_for_events()
 
-                                    self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
+                                    self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                                     self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.SetCartLinVel(400) ## Restore travel speed
                                     self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
-
+                                    self.robot.SetCartLinVel(400) ## Restore travel speed
+                                    
                                     if not self.scale.close_doors(self, user_name):
                                         raise ProcessCancelledError("User chose to end the process due to door failure.")
                                     check_for_events(); smart_sleep(1)
@@ -966,13 +966,13 @@ class RobotUiApp:
                                     check_for_events()
 
                                     self.log("   -> Placing vial back on the scale...")
-                                    self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
+                                    self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
                                     self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
                                     self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.SetCartLinVel(400) ## Restore travel speed
                                     self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                                    self.robot.SetCartLinVel(400) ## Restore travel speed
 
                                     if not self.scale.close_doors(self, user_name): # Corrected call
                                         raise ProcessCancelledError("User chose to end the process due to door failure.")
@@ -1023,13 +1023,13 @@ class RobotUiApp:
                             check_for_events()
                             
                             #picks vial up from scale and moves back to original postion
-                            self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                             self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
+                            self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
                             self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)                            
                             self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
-                            self.robot.SetCartLinVel(400) ## Restore travel speed
                             self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                            self.robot.SetCartLinVel(400) ## Restore travel speed
                             
                             # Close doors and tare the scale for the NEXT vial concurrently (skip if this is the last vial)
                             if i < end_index:
