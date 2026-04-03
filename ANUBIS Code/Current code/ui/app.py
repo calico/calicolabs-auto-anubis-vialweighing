@@ -659,6 +659,19 @@ class RobotUiApp:
                 check_for_events()
                 time.sleep(min(0.1, duration - (time.time() - start)))
 
+        def move_pose(pose):
+            self.robot.MovePose(*pose); self.robot.WaitIdle(); check_for_events()
+
+        def move_lin(pose):
+            self.robot.MoveLin(*pose); self.robot.WaitIdle(); check_for_events()
+
+        def move_joints(joints):
+            self.robot.MoveJoints(*joints); self.robot.WaitIdle(); check_for_events()
+
+        def move_gripper(dist, sleep_time=0.0):
+            self.robot.MoveGripper(dist); self.robot.WaitIdle(); check_for_events()
+            if sleep_time > 0: smart_sleep(sleep_time)
+
         try:
             self.log(f"Connecting..."); self.robot.Connect(address=self.common_params["ROBOT_IP"]); check_for_events()
             self.robot.ActivateRobot(); check_for_events()
@@ -691,9 +704,7 @@ class RobotUiApp:
                 # On starting a Nest 3 task, move to the safety position first.
                 if nest_params['name'] == 'Nest 3':
                     self.log("   -> Moving to Nest 3 safety position to begin task.")
-                    self.robot.MoveJoints(*nest_params['intermediate_pose_nest3_safety'])
-                    self.robot.WaitIdle()
-                    check_for_events()
+                    move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
 
                 # Json parameters and position parameters
                 GRIPPER_OPEN = nest_params.get('gripper_open_dist', 2.7)
@@ -719,7 +730,7 @@ class RobotUiApp:
                     dynamic_scanner_pose[2] = nest_params['scanner_z_position']
                     self.log(f"   -> Using custom scanner Z-position: {dynamic_scanner_pose[2]}")
 
-                self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events()
+                move_gripper(GRIPPER_OPEN)
 
                 file_path = nest_params["CSV_FILE_PATH"]
                 rack_barcode = nest_params["rack_barcode"]
@@ -764,14 +775,14 @@ class RobotUiApp:
                        
                         if last_completed_pose is not None:
                             lift_off_pose = list(last_completed_pose); lift_off_pose[2] += LIFT_UP_MM
-                            self.robot.MoveLin(*lift_off_pose); self.robot.WaitIdle(); check_for_events()
+                            move_lin(lift_off_pose)
 
-                        self.robot.MovePose(*approach_pose); self.robot.WaitIdle(); check_for_events()
-                        self.robot.MoveLin(*current_target_pose); self.robot.WaitIdle(); check_for_events()
-                        self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events() 
+                        move_pose(approach_pose)
+                        move_lin(current_target_pose)
+                        move_gripper(GRIPPER_CLOSE) 
 
                         
-                        self.robot.MoveLin(*approach_pose); self.robot.WaitIdle(); check_for_events()
+                        move_lin(approach_pose)
 
                         # MoveLin is for precision movements that require a straight path
                         # MovePose is for path movements that dont need to be perfect as they tend to have curvature in the movement
@@ -780,12 +791,10 @@ class RobotUiApp:
                         # If leaving from Nest 3, move to a specific safety pose first.
                         if nest_params['name'] == 'Nest 3':
                             self.log("   -> Moving to Nest 3 safety position before proceeding.")
-                            self.robot.MoveJoints(*nest_params['intermediate_pose_nest3_safety'])
-                            self.robot.WaitIdle()
-                            check_for_events()
+                            move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
 
-                        self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
-                        self.robot.MovePose(*dynamic_scanner_pose); self.robot.WaitIdle(); check_for_events()
+                        move_joints(home_position_joints)
+                        move_pose(dynamic_scanner_pose)
                         
                         scanned_barcode = None
                         try: ## if he scan fails it drops the vial back off in it original spot and picks it back up to try and scan again
@@ -794,32 +803,28 @@ class RobotUiApp:
                         except queue.Empty:
                             self.log("   -> Scan timed out. Returning vial to re-grip for second attempt.")
                             
-                            self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
+                            move_joints(home_position_joints)
                             
                             if nest_params['name'] == 'Nest 3':
                                 self.log("   -> (Retry) Moving to Nest 3 safety position before re-gripping.")
-                                self.robot.MoveJoints(*nest_params['intermediate_pose_nest3_safety'])
-                                self.robot.WaitIdle()
-                                check_for_events()
+                                move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
                             
-                            self.robot.MovePose(*approach_pose); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveLin(*retry_approach_pose); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); 
-                            self.robot.MoveLin(*current_target_pose); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.2)
+                            move_pose(approach_pose)
+                            move_lin(retry_approach_pose)
+                            move_gripper(GRIPPER_OPEN); 
+                            move_lin(current_target_pose)
+                            move_gripper(GRIPPER_CLOSE, .2)
 
                               
                         
-                            self.robot.MoveLin(*approach_pose); self.robot.WaitIdle(); check_for_events()
+                            move_lin(approach_pose)
                             
                             if nest_params['name'] == 'Nest 3':
                                 self.log("   -> (Retry) Moving to Nest 3 safety position before proceeding to scanner.")
-                                self.robot.MoveJoints(*nest_params['intermediate_pose_nest3_safety'])
-                                self.robot.WaitIdle()
-                                check_for_events()
+                                move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
 
-                            self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MovePose(*dynamic_scanner_pose); self.robot.WaitIdle(); check_for_events()
+                            move_joints(home_position_joints)
+                            move_pose(dynamic_scanner_pose)
                             
                             try:  ### if the scan fails a second time then it puts it backin its original spot and got to the next position
                                 self.log("   -> Waiting for barcode scan (Attempt 2/2)...")
@@ -827,17 +832,15 @@ class RobotUiApp:
                             except queue.Empty:
                                 self.log("   -> Scan failed on second attempt. Returning vial and skipping.")
 
-                                self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
+                                move_joints(home_position_joints)
                                 
                                 if nest_params['name'] == 'Nest 3':
                                     self.log("   -> (Failed Scan) Moving to Nest 3 safety position before returning vial.")
-                                    self.robot.MoveJoints(*nest_params['intermediate_pose_nest3_safety'])
-                                    self.robot.WaitIdle()
-                                    check_for_events()
+                                    move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
 
-                                self.robot.MovePose(*approach_pose); self.robot.WaitIdle(); check_for_events()
-                                self.robot.MoveLin(*retry_approach_pose); self.robot.WaitIdle(); check_for_events()
-                                self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events()
+                                move_pose(approach_pose)
+                                move_lin(retry_approach_pose)
+                                move_gripper(GRIPPER_OPEN)
 
                                 vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
                                 writer.writerow([vial_coordinate, "Vial Not Found"]); csvfile.flush()
@@ -898,8 +901,8 @@ class RobotUiApp:
                             vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
                             self.log(f"   -> Scan received: {scanned_barcode} for vial {vial_coordinate}. Resuming...")
                             
-                            self.robot.MovePose(*nest_params['intermediate_pose_2']); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                            move_pose(nest_params['intermediate_pose_2'])
+                            move_pose(nest_params['intermediate_pose_3'])
 
                             # if doors don't open process will be canceled -- this is just a last resort as the function has many error precautions
                             if not self.scale.open_doors(self, user_name):
@@ -909,11 +912,11 @@ class RobotUiApp:
                             # Moves vial into scale
                             # I put a timestamp here as an inital time test for opening the doors but now i left it just to see how long it takes to cycle through
                             self.robot.SetCartLinVel(50) ## Drastically reduce speed before entering the draft shield to prevent aerodynamic turbulence
-                            self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events(); self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
-                            self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
-                            self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                            move_pose(scale_dropoff_approach); self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
+                            move_lin(scale_dropoff)
+                            move_gripper(GRIPPER_OPEN, .5)
+                            move_lin(scale_dropoff_approach)
+                            move_pose(nest_params['intermediate_pose_3'])
                             self.robot.SetCartLinVel(400) ## Restore travel speed when fully outside the draft shield
                             
                             if not self.scale.close_doors(self, user_name):
@@ -941,11 +944,11 @@ class RobotUiApp:
                                     check_for_events()
 
                                     self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
-                                    self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
-                                    self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                                    move_pose(scale_pickup_approach)
+                                    move_lin(scale_pickup)
+                                    move_gripper(GRIPPER_CLOSE, .5)
+                                    move_lin(scale_pickup_approach)
+                                    move_pose(nest_params['intermediate_pose_3'])
                                     self.robot.SetCartLinVel(400) ## Restore travel speed
                                     
                                     if not self.scale.close_doors(self, user_name):
@@ -962,11 +965,11 @@ class RobotUiApp:
 
                                     self.log("   -> Placing vial back on the scale...")
                                     self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
-                                    self.robot.MovePose(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MoveLin(*scale_dropoff); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)
-                                    self.robot.MoveLin(*scale_dropoff_approach); self.robot.WaitIdle(); check_for_events()
-                                    self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                                    move_pose(scale_dropoff_approach)
+                                    move_lin(scale_dropoff)
+                                    move_gripper(GRIPPER_OPEN, .5)
+                                    move_lin(scale_dropoff_approach)
+                                    move_pose(nest_params['intermediate_pose_3'])
                                     self.robot.SetCartLinVel(400) ## Restore travel speed
 
                                     if not self.scale.close_doors(self, user_name): # Corrected call
@@ -1019,11 +1022,11 @@ class RobotUiApp:
                             
                             #picks vial up from scale and moves back to original postion
                             self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
-                            self.robot.MovePose(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveLin(*scale_pickup); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_CLOSE); self.robot.WaitIdle(); check_for_events(); smart_sleep(.5)                            
-                            self.robot.MoveLin(*scale_pickup_approach); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MovePose(*nest_params['intermediate_pose_3']); self.robot.WaitIdle(); check_for_events()
+                            move_pose(scale_pickup_approach)
+                            move_lin(scale_pickup)
+                            move_gripper(GRIPPER_CLOSE, .5)                            
+                            move_lin(scale_pickup_approach)
+                            move_pose(nest_params['intermediate_pose_3'])
                             self.robot.SetCartLinVel(400) ## Restore travel speed
                             
                             # Close doors and tare the scale for the NEXT vial concurrently (skip if this is the last vial)
@@ -1052,19 +1055,17 @@ class RobotUiApp:
                                 tare_thread = threading.Thread(target=concurrent_tare, daemon=True)
                                 tare_thread.start()
 
-                            self.robot.MovePose(*nest_params['intermediate_pose_2']); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveJoints(*home_position_joints); self.robot.WaitIdle(); check_for_events()
+                            move_pose(nest_params['intermediate_pose_2'])
+                            move_joints(home_position_joints)
 
                             if nest_params['name'] == 'Nest 3':
                                 self.log("   -> Moving to Nest 3 safety position before returning vial from scale.")
-                                self.robot.MoveJoints(*nest_params['intermediate_pose_nest3_safety'])
-                                self.robot.WaitIdle()
-                                check_for_events()
+                                move_joints(nest_params[\"intermediate_pose_nest3_safety\"])
 
-                            self.robot.MovePose(*approach_pose); self.robot.WaitIdle(); check_for_events()
+                            move_pose(approach_pose)
                             self.robot.SetCartLinVel(400)
-                            self.robot.MoveLin(*current_target_pose); self.robot.WaitIdle(); check_for_events()
-                            self.robot.MoveGripper(GRIPPER_OPEN); self.robot.WaitIdle(); check_for_events()
+                            move_lin(current_target_pose)
+                            move_gripper(GRIPPER_OPEN)
 
                             last_completed_pose = self.robot.GetPose()
                             self.log("   -> Cycle complete.\n"); smart_sleep(.5)
@@ -1072,7 +1073,7 @@ class RobotUiApp:
                     if last_completed_pose is not None:
                         self.log(f"-> Finished rack {nest_params['name']}. Lifting up before next task.")
                         lift_off_pose = list(last_completed_pose); lift_off_pose[2] += LIFT_UP_MM
-                        self.robot.MoveLin(*lift_off_pose); self.robot.WaitIdle(); check_for_events()
+                        move_lin(lift_off_pose)
 
             self.log("***** All selected tasks are complete. *****")
             self.robot.MoveJoints(*self.common_params['home_position_joints']); self.robot.WaitIdle()
