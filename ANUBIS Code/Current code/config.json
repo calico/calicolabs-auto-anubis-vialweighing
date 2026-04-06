@@ -1,0 +1,17 @@
+{
+    "hardware": {
+        "robot_ip": "192.168.0.100",
+        "scale_port": "COM3",
+        "scale_baudrate": 9600,
+        "arduino_port": "COM4"
+    },
+    "paths": {
+        "rack_library": "Rack Library",
+        "log_files": "Log_Files",
+        "csv_files": "Rack_CSV_Files",
+        "splash_image": "Anubis.png"
+    },
+    "notifications": {
+        "gchat_webhook_url": ""
+    }
+}
