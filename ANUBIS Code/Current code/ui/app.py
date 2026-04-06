@@ -682,6 +682,10 @@ class RobotUiApp:
             self.robot.SetTorqueLimitsCfg(4, 1) # Error on torque limit, detect always
             self.robot.SetTorqueLimits(torque_limit, torque_limit, torque_limit, torque_limit, torque_limit, torque_limit)
             self.log(f"-> Torque limits set to {torque_limit}% for all joints.")
+
+            # Enable force detection of the grippers and limit this force to 5%
+            self.robot.SetGripperForce(5)
+            self.log("-> Gripper force detection enabled and limited to 5%.")
             # SetJointVel: specifies desired velocity of joints during MovePose and MoveJoints commands
             # SetJointAcc: sets acc limit of MovePose and MoveJoints
             # SetCartLinVel: sets desird and max velocity of MovLin Movemennts
