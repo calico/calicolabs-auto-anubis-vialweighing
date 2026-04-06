@@ -686,6 +686,11 @@ class RobotUiApp:
             # Enable force detection of the grippers and limit this force to 5%
             self.robot.SetGripperForce(5)
             self.log("-> Gripper force detection enabled and limited to 5%.")
+
+            # Limit the speed of the grippers
+            self.robot.SetGripperVel(10)
+            self.log("-> Gripper speed limited to 10%")
+            
             # SetJointVel: specifies desired velocity of joints during MovePose and MoveJoints commands
             # SetJointAcc: sets acc limit of MovePose and MoveJoints
             # SetCartLinVel: sets desird and max velocity of MovLin Movemennts
