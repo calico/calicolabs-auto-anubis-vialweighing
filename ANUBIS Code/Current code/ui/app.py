@@ -703,7 +703,7 @@ class RobotUiApp:
             check_for_events()
             
             self.scale.power_on_or_reset()
-            self.scale.zero()
+            #self.scale.zero()
             check_for_events()
             self.log("-> Scale Initialized and Zeroed.")
             
