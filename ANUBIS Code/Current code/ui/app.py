@@ -722,7 +722,7 @@ class RobotUiApp:
                 # Json parameters and position parameters
                 GRIPPER_OPEN_NEST = nest_params.get('gripper_open_dist', 3.5)
                 GRIPPER_CLOSED_NEST = nest_params.get('gripper_close_dist', 1.25)
-                GRIPPER_OPEN_BAL = nest_params.get('gripper_open_dist_bal', 5.8)
+                GRIPPER_OPEN_BAL = nest_params.get('gripper_open_dist_bal', 3.5)
                 GRIPPER_CLOSED_BAL = nest_params.get('gripper_close_dist_bal', 1.0)
                 LIFT_UP_MM = nest_params.get('lift_up_mm', 50.0)
                 INCREMENT_1X = nest_params.get('increment_1x_mm', -9.0)
