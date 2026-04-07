@@ -723,7 +723,7 @@ class RobotUiApp:
                 GRIPPER_OPEN_NEST = nest_params.get('gripper_open_dist', 3.5)
                 GRIPPER_CLOSED_NEST = nest_params.get('gripper_close_dist', 3.0)
                 GRIPPER_OPEN_BAL = nest_params.get('gripper_open_dist_bal', 5.8)
-                GRIPPER_CLOSED_BAL = nest_params.get('gripper_close_dist_bal', 3.25)
+                GRIPPER_CLOSED_BAL = nest_params.get('gripper_close_dist_bal', 2.25)
                 LIFT_UP_MM = nest_params.get('lift_up_mm', 50.0)
                 INCREMENT_1X = nest_params.get('increment_1x_mm', -9.0)
                 INCREMENT_1Y = nest_params.get('increment_1y_mm', 9.0)
@@ -745,7 +745,9 @@ class RobotUiApp:
                     dynamic_scanner_pose[2] = nest_params['scanner_z_position']
                     self.log(f"   -> Using custom scanner Z-position: {dynamic_scanner_pose[2]}")
 
-                move_gripper(GRIPPER_OPEN_NEST)
+                move_gripper(GRIPPER_OPEN_BAL, 1.5)
+                
+                move_gripper(GRIPPER_OPEN_NEST, 1.5)
 
                 file_path = nest_params["CSV_FILE_PATH"]
                 rack_barcode = nest_params["rack_barcode"]
