@@ -690,6 +690,10 @@ class RobotUiApp:
             # Limit the speed of the grippers
             self.robot.SetGripperVel(10)
             self.log("-> Gripper speed limited to 10%")
+
+            # Set Gripper Range
+            self.robot.SetGripperRange(3,5.8)
+            self.log("-> Set the grippers range from 3. 5.8")
             
             # SetJointVel: specifies desired velocity of joints during MovePose and MoveJoints commands
             # SetJointAcc: sets acc limit of MovePose and MoveJoints
@@ -716,8 +720,10 @@ class RobotUiApp:
                     move_joints(nest_params["intermediate_pose_nest3_safety"])
 
                 # Json parameters and position parameters
-                GRIPPER_OPEN = nest_params.get('gripper_open_dist', 2.7)
-                GRIPPER_CLOSE = nest_params.get('gripper_close_dist', 0)
+                GRIPPER_OPEN_NEST = nest_params.get('gripper_open_dist', 2.7)
+                GRIPPER_CLOSED_NEST = nest_params.get('gripper_close_dist', 0)
+                GRIPPER_OPEN_BAL = nest_params.get('gripper_open_dist_bal', 2.7)
+                GRIPPER_CLOSED_BAL = nest_params.get('gripper_close_dist_bal', 0)
                 LIFT_UP_MM = nest_params.get('lift_up_mm', 50.0)
                 INCREMENT_1X = nest_params.get('increment_1x_mm', -9.0)
                 INCREMENT_1Y = nest_params.get('increment_1y_mm', 9.0)
@@ -739,7 +745,7 @@ class RobotUiApp:
                     dynamic_scanner_pose[2] = nest_params['scanner_z_position']
                     self.log(f"   -> Using custom scanner Z-position: {dynamic_scanner_pose[2]}")
 
-                move_gripper(GRIPPER_OPEN)
+                move_gripper(GRIPPER_OPEN_NEST)
 
                 file_path = nest_params["CSV_FILE_PATH"]
                 rack_barcode = nest_params["rack_barcode"]
@@ -788,7 +794,7 @@ class RobotUiApp:
 
                         move_pose(approach_pose)
                         move_lin(current_target_pose)
-                        move_gripper(GRIPPER_CLOSE) 
+                        move_gripper(GRIPPER_CLOSED_NEST) 
 
                         
                         move_lin(approach_pose)
@@ -820,9 +826,9 @@ class RobotUiApp:
                             
                             move_pose(approach_pose)
                             move_lin(retry_approach_pose)
-                            move_gripper(GRIPPER_OPEN); 
+                            move_gripper(GRIPPER_OPEN_NEST); 
                             move_lin(current_target_pose)
-                            move_gripper(GRIPPER_CLOSE, .2)
+                            move_gripper(GRIPPER_CLOSED_NEST, .2)
 
                               
                         
@@ -849,7 +855,7 @@ class RobotUiApp:
 
                                 move_pose(approach_pose)
                                 move_lin(retry_approach_pose)
-                                move_gripper(GRIPPER_OPEN)
+                                move_gripper(GRIPPER_OPEN_NEST)
 
                                 vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
                                 writer.writerow([vial_coordinate, "Vial Not Found"]); csvfile.flush()
@@ -923,7 +929,7 @@ class RobotUiApp:
                             self.robot.SetCartLinVel(50) ## Drastically reduce speed before entering the draft shield to prevent aerodynamic turbulence
                             move_pose(scale_dropoff_approach); self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
                             move_lin(scale_dropoff)
-                            move_gripper(GRIPPER_OPEN, .5)
+                            move_gripper(GRIPPER_OPEN_BAL, .5)
                             move_lin(scale_dropoff_approach)
                             move_pose(nest_params['intermediate_pose_3'])
                             self.robot.SetCartLinVel(400) ## Restore travel speed when fully outside the draft shield
@@ -955,7 +961,7 @@ class RobotUiApp:
                                     self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
                                     move_pose(scale_pickup_approach)
                                     move_lin(scale_pickup)
-                                    move_gripper(GRIPPER_CLOSE, .5)
+                                    move_gripper(GRIPPER_CLOSED_BAL, .5)
                                     move_lin(scale_pickup_approach)
                                     move_pose(nest_params['intermediate_pose_3'])
                                     self.robot.SetCartLinVel(400) ## Restore travel speed
@@ -976,7 +982,7 @@ class RobotUiApp:
                                     self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
                                     move_pose(scale_dropoff_approach)
                                     move_lin(scale_dropoff)
-                                    move_gripper(GRIPPER_OPEN, .5)
+                                    move_gripper(GRIPPER_OPEN_BAL, .5)
                                     move_lin(scale_dropoff_approach)
                                     move_pose(nest_params['intermediate_pose_3'])
                                     self.robot.SetCartLinVel(400) ## Restore travel speed
@@ -1033,7 +1039,7 @@ class RobotUiApp:
                             self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
                             move_pose(scale_pickup_approach)
                             move_lin(scale_pickup)
-                            move_gripper(GRIPPER_CLOSE, .5)                            
+                            move_gripper(GRIPPER_CLOSED_BAL, .5)                            
                             move_lin(scale_pickup_approach)
                             move_pose(nest_params['intermediate_pose_3'])
                             self.robot.SetCartLinVel(400) ## Restore travel speed
@@ -1074,7 +1080,7 @@ class RobotUiApp:
                             move_pose(approach_pose)
                             self.robot.SetCartLinVel(400)
                             move_lin(current_target_pose)
-                            move_gripper(GRIPPER_OPEN)
+                            move_gripper(GRIPPER_OPEN_NEST)
 
                             last_completed_pose = self.robot.GetPose()
                             self.log("   -> Cycle complete.\n"); smart_sleep(.5)
@@ -1100,7 +1106,7 @@ class RobotUiApp:
                 try:
                     self.robot.WaitIdle()
                     self.log("Opening gripper...")
-                    safe_gripper_open = locals().get('GRIPPER_OPEN', 2.7)
+                    safe_gripper_open = locals().get('GRIPPER_OPEN_NEST', 2.7)
                     self.robot.MoveGripper(safe_gripper_open); self.robot.WaitIdle()
                     
                     self.log("Retracting linearly upwards to clear obstacles...")
