@@ -3,14 +3,15 @@ import time
 
 class ArduinoController:
     """Handles all communication and logic for the Arduino door sensors."""
-    def __init__(self, port, baudrate, timeout=1):
+    def __init__(self, port, baudrate, timeout=1, log_callback=None):
         self.connection = None
+        self.log = log_callback if log_callback else print
         try:
             self.connection = serial.Serial(port, baudrate, timeout=timeout)
-            print(f"Successfully connected to Arduino on {port}")
+            self.log(f"Successfully connected to Arduino on {port}")
             time.sleep(2)
         except serial.SerialException as e:
-            print(f"Error: Could not connect to Arduino. {e}")
+            self.log(f"Error: Could not connect to Arduino. {e}")
 
     def _get_statuses(self):
         """
@@ -28,7 +29,7 @@ class ArduinoController:
             
             if not raw_line:
                 return None
-            print(f"DEBUG: Arduino raw data: '{raw_line}'")
+            self.log(f"DEBUG: Arduino raw data: '{raw_line}'")
             
             # More robust parsing to handle potential whitespace (e.g., "pin5: Open")
             statuses = {}
@@ -41,7 +42,7 @@ class ArduinoController:
             return statuses
 
         except Exception as e:
-            print(f"Error processing Arduino message: {e}")
+            self.log(f"Error processing Arduino message: {e}")
             return None
 
     def are_doors_open(self):
@@ -62,4 +63,4 @@ class ArduinoController:
         """Closes the serial connection gracefully."""
         if self.connection and self.connection.is_open:
             self.connection.close()
-            print("Arduino connection closed.")
+            self.log("Arduino connection closed.")

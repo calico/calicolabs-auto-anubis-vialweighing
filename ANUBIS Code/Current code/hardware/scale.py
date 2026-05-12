@@ -1,5 +1,6 @@
 import serial
 import time
+import threading
 from tkinter import messagebox
 
 class MettlerToledoController:
@@ -13,6 +14,7 @@ class MettlerToledoController:
         self.arduino = arduino_controller
         self.app = app_instance
         self.consecutive_weight_failures = 0
+        self._serial_lock = threading.Lock()
 
     def connect(self):
         try: 
@@ -36,39 +38,40 @@ class MettlerToledoController:
 
     def _send_command(self, command):
         if not self.connection or not self.connection.is_open: return None
-        try:
-            self.connection.reset_input_buffer()
-            self.connection.reset_output_buffer()
-            full_command = (command + "\r\n").encode('ascii')
-            self.connection.write(full_command)
-            time.sleep(0.3)
-            lines = self.connection.readlines()
-            response_lines = [line.decode('ascii').strip() for line in lines if line]
-            if not response_lines:
-                return ""
-            if len(response_lines) == 1:
-                return response_lines[0]
-            # When app is used, it historically expected the last line. Tests expected joined lines.
-            return response_lines[-1] if self.app else " | ".join(response_lines)
-        except Exception as e:
-            self.log(f"Scale command error: {e}")
-            return None
+        with self._serial_lock:
+            try:
+                self.connection.reset_input_buffer()
+                self.connection.reset_output_buffer()
+                full_command = (command + "\r\n").encode('ascii')
+                self.connection.write(full_command)
+                time.sleep(0.3)
+                lines = self.connection.readlines()
+                response_lines = [line.decode('ascii').strip() for line in lines if line]
+                if not response_lines:
+                    return ""
+                if len(response_lines) == 1:
+                    return response_lines[0]
+                return response_lines[-1]
+            except Exception as e:
+                self.log(f"Scale command error: {e}")
+                return None
         
     def _send_command_no_response(self, command):
         if not self.connection or not self.connection.is_open:
            self.log("Cannot send command: Scale is not connected.")
            return False
 
-        try:
-           self.connection.reset_input_buffer()
-           self.connection.reset_output_buffer()
-           full_command = (command + "\r\n").encode('ascii')
-           self.connection.write(full_command)
-           self.log(f"Sent command '{command}' with no response expected.")
-           return True
-        except Exception as e:
-           self.log(f"Error sending command '{command}': {e}")
-           return False
+        with self._serial_lock:
+            try:
+               self.connection.reset_input_buffer()
+               self.connection.reset_output_buffer()
+               full_command = (command + "\r\n").encode('ascii')
+               self.connection.write(full_command)
+               self.log(f"Sent command '{command}' with no response expected.")
+               return True
+            except Exception as e:
+               self.log(f"Error sending command '{command}': {e}")
+               return False
 
     def power_on_or_reset(self):
         self.log("   -> Sending '@' command to wake scale...")
@@ -160,7 +163,7 @@ class MettlerToledoController:
             if self.arduino.are_doors_open():
                 self.log("Success: Arduino confirms doors are OPEN.")
                 return True
-            time.sleep(0.02)
+            time.sleep(0.1)
         self.log("Warning: Failed to confirm doors are open. Retrying automatically...")
         self._send_command("WS 5")
         time.sleep(1.5)
@@ -190,7 +193,7 @@ class MettlerToledoController:
                 if self.arduino.are_doors_open():
                     self.log("Success: Arduino confirms doors are OPEN after user retry.")
                     return True
-                time.sleep(0.02)
+                time.sleep(0.1)
             response = self._send_command("WS")
             time.sleep(1.5)
             if response == "WS A 5":
@@ -211,7 +214,7 @@ class MettlerToledoController:
             if self.arduino.are_doors_closed():
                 self.log("Success: Arduino confirms doors are CLOSED.")
                 return True
-            time.sleep(0.02)
+            time.sleep(0.1)
 
         self.log("Warning: Failed to confirm doors are closed. Retrying automatically...")
         self._send_command("WS 0")
@@ -241,7 +244,7 @@ class MettlerToledoController:
                 if self.arduino.are_doors_closed():
                     self.log("Success: Arduino confirms doors are CLOSED after user retry.")
                     return True
-                time.sleep(0.02)
+                time.sleep(0.1)
             response = self._send_command("WS")
             time.sleep(1.5)
             if response == "WS A 0":
@@ -258,24 +261,27 @@ class MettlerToledoController:
 
         if response == 'C0 A 2 0 ""':
             self.log("Warning: Scale adjustment is required. Starting automatic adjustment...")
-            
+
             while True:
-                self.connection.reset_input_buffer()
-                self.connection.write("C3\r\n".encode('ascii'))
-                
-                first_resp = self.connection.readline().decode('ascii').strip()
+                with self._serial_lock:
+                    self.connection.reset_input_buffer()
+                    self.connection.write("C3\r\n".encode('ascii'))
+                    first_resp = self.connection.readline().decode('ascii').strip()
                 if first_resp != "C3 B":
                     self.log(f"ERROR: Failed to start scale adjustment. Scale said: {first_resp}")
                     return False
-                
+
                 if self.app and user_name:
                     self.app.root.after(0, self.app.send_gchat_notification, "Scale adjustment in progress...", user_name)
                 self.log("Adjustment in progress... Waiting for completion signal from scale...")
-                
+
                 start_time = time.time()
                 while time.time() - start_time < timeout:
-                    if self.connection.in_waiting > 0:
-                        final_resp = self.connection.readline().decode('ascii').strip()
+                    with self._serial_lock:
+                        has_data = self.connection.in_waiting > 0
+                        if has_data:
+                            final_resp = self.connection.readline().decode('ascii').strip()
+                    if has_data:
                         if final_resp == "C3 A":
                             self.log("Success: Scale adjustment completed successfully.")
                             if self.app and user_name:

@@ -42,3 +42,45 @@ def index_to_coordinate(index, max_wells=96, reset_interval=8):
     row_number = row_index + 1
     
     return f"{col_letter}{row_number}"
+
+
+def calculate_vial_pose(base_pose, nest_name, index, increments, reset_interval):
+    """Calculates the target pose for a vial based on its index and nest location.
+
+    Args:
+        base_pose: The [x, y, z, a, b, c] base pose for the nest's A1 position.
+        nest_name: One of 'Nest 1', 'Nest 2', 'Nest 3'.
+        index: Zero-based vial index.
+        increments: Dict with keys like 'increment_1x_mm', 'increment_1y_mm', etc.
+        reset_interval: Number of vials per column (row_reset_interval from config).
+
+    Returns:
+        A new list representing the target pose.
+    """
+    group_number, step_in_group = divmod(index, reset_interval)
+    target_pose = list(base_pose)
+
+    if nest_name == 'Nest 1':
+        x_offset = step_in_group * increments.get('increment_1x_mm', -9.0)
+        y_offset = group_number * increments.get('increment_1y_mm', 9.0)
+        target_pose[0] += x_offset
+        target_pose[1] -= y_offset
+    elif nest_name == 'Nest 2':
+        y_offset = step_in_group * increments.get('increment_2y_mm', 9.0)
+        x_offset = group_number * increments.get('increment_2x_mm', -9.0)
+        target_pose[1] += y_offset
+        target_pose[0] += x_offset
+    elif nest_name == 'Nest 3':
+        x_offset = step_in_group * increments.get('increment_3x_mm', -9.0)
+        y_offset = group_number * increments.get('increment_3y_mm', 9.0)
+        target_pose[0] -= x_offset
+        target_pose[1] += y_offset
+
+    return target_pose
+
+
+def sanitize_csv_value(value):
+    """Escapes values that could trigger formula injection when opened in spreadsheet software."""
+    if isinstance(value, str) and value and value[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + value
+    return value
