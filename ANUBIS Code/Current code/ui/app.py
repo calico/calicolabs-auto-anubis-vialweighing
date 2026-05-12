@@ -21,7 +21,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import APP_CONFIG
-from core.utils import ProcessCancelledError, coordinate_to_index, index_to_coordinate
+from core.utils import ProcessCancelledError, coordinate_to_index, index_to_coordinate, calculate_vial_pose, sanitize_csv_value
 from hardware.arduino import ArduinoController
 from hardware.scale import MettlerToledoController
 from hardware.robot import Meca500Resetter
@@ -110,7 +110,7 @@ class RobotUiApp:
             "LOG_FILE_PATH": APP_CONFIG["paths"]["log_files"],
             "CSV_FILE_PATH": APP_CONFIG["paths"]["csv_files"]
         }
-        self.scanner_params = {"CSV_HEADER": ['Coordinate', 'Scanned Barcode','Vial Weight']}
+        self.scanner_params = {"CSV_HEADER": ['Coordinate', 'Scanned Barcode', 'Vial Weight', 'Unit']}
 
         self.create_widgets()
         self.process_log_queue()
@@ -447,9 +447,13 @@ class RobotUiApp:
     def emergency_shutdown(self):
         self.log("!!!!!!!! EMERGENCY SHUTDOWN INITIATED !!!!!!!!")
         self.pause_event.set(); self.cancel_event.set()
-        if self.robot and self.robot.IsConnected():
-            self.robot.DeactivateRobot(); self.robot.Disconnect()
-            self.log("-> Robot deactivated and disconnected forcefully.")
+        try:
+            if self.robot and self.robot.IsConnected():
+                self.robot.DeactivateRobot()
+                self.robot.Disconnect()
+                self.log("-> Robot deactivated and disconnected forcefully.")
+        except Exception as e:
+            self.log(f"Error during emergency robot disconnect: {e}")
         self.task_completed()
 
     def task_completed(self):
@@ -641,96 +645,345 @@ class RobotUiApp:
         self.root.wait_window(popup)
 
 
+    # --- Motion helper methods ---
+
+    def _check_for_events(self):
+        self.pause_event.wait()
+        if self.cancel_event.is_set():
+            raise ProcessCancelledError("Process cancelled by user.")
+
+    def _smart_sleep(self, duration):
+        start = time.time()
+        while time.time() - start < duration:
+            self._check_for_events()
+            time.sleep(min(0.1, duration - (time.time() - start)))
+
+    def _move_pose(self, pose):
+        self.robot.MovePose(*pose)
+        self.robot.WaitIdle()
+        self._check_for_events()
+
+    def _move_lin(self, pose):
+        self.robot.MoveLin(*pose)
+        self.robot.WaitIdle()
+        self._check_for_events()
+
+    def _move_joints(self, joints):
+        self.robot.MoveJoints(*joints)
+        self.robot.WaitIdle()
+        self._check_for_events()
+
+    def _move_gripper(self, dist, sleep_time=0.0):
+        self.robot.MoveGripper(dist)
+        self.robot.WaitIdle()
+        self._check_for_events()
+        if sleep_time > 0:
+            self._smart_sleep(sleep_time)
+
+    def _move_to_nest3_safety(self, nest_params, context=""):
+        if nest_params['name'] == 'Nest 3':
+            if context:
+                self.log(f"   -> {context}")
+            else:
+                self.log("   -> Moving to Nest 3 safety position.")
+            self._move_joints(nest_params["intermediate_pose_nest3_safety"])
+
+    # --- Robot setup ---
+
+    def _connect_and_configure_robot(self):
+        robot_params = APP_CONFIG.get("robot_params", {})
+        self.log("Connecting...")
+        self.robot.Connect(address=self.common_params["ROBOT_IP"])
+        self._check_for_events()
+        self.robot.ActivateRobot()
+        self._check_for_events()
+        self.robot.Home()
+        self._check_for_events()
+        self.log("-> Robot Homed and Activated.")
+
+        torque_limit = robot_params.get("torque_limit", 50)
+        self.robot.SetTorqueLimitsCfg(4, 1)
+        self.robot.SetTorqueLimits(torque_limit, torque_limit, torque_limit, torque_limit, torque_limit, torque_limit)
+        self.log(f"-> Torque limits set to {torque_limit}% for all joints.")
+
+        gripper_force = robot_params.get("gripper_force", 5)
+        self.robot.SetGripperForce(gripper_force)
+        self.log(f"-> Gripper force detection enabled and limited to {gripper_force}%.")
+
+        gripper_vel = robot_params.get("gripper_vel", 10)
+        self.robot.SetGripperVel(gripper_vel)
+        self.log(f"-> Gripper speed limited to {gripper_vel}%")
+
+        gripper_range = robot_params.get("gripper_range", [3, 5.8])
+        self.robot.SetGripperRange(*gripper_range)
+        self.log(f"-> Set the grippers range from {gripper_range[0]} to {gripper_range[1]}")
+
+        joint_vel = robot_params.get("joint_vel", 80)
+        joint_acc = robot_params.get("joint_acc", 75)
+        cart_lin_vel = robot_params.get("cart_lin_vel", 400)
+        self.robot.SetJointVel(joint_vel)
+        self.robot.SetJointAcc(joint_acc)
+        self.robot.SetCartLinVel(cart_lin_vel)
+
+    # --- Barcode scanning ---
+
+    def _scan_barcode_with_retry(self, nest_params, approach_pose, current_target_pose,
+                                  retry_approach_pose, gripper_open, gripper_close,
+                                  home_joints, scanner_pose):
+        """Attempts to scan a barcode with one re-grip retry. Returns the barcode or None."""
+        scanned_barcode = None
+        try:
+            self.log("   -> Waiting for barcode scan (Attempt 1/2)...")
+            scanned_barcode = self.barcode_queue.get(timeout=4)
+        except queue.Empty:
+            self.log("   -> Scan timed out. Returning vial to re-grip for second attempt.")
+            self._move_joints(home_joints)
+            self._move_to_nest3_safety(nest_params, "(Retry) Moving to Nest 3 safety position before re-gripping.")
+
+            self._move_pose(approach_pose)
+            self._move_lin(retry_approach_pose)
+            self._move_gripper(gripper_open)
+            self._move_lin(current_target_pose)
+            self._move_gripper(gripper_close, .2)
+            self._move_lin(approach_pose)
+
+            self._move_to_nest3_safety(nest_params, "(Retry) Moving to Nest 3 safety position before proceeding to scanner.")
+            self._move_joints(home_joints)
+            self._move_pose(scanner_pose)
+
+            try:
+                self.log("   -> Waiting for barcode scan (Attempt 2/2)...")
+                scanned_barcode = self.barcode_queue.get(timeout=4)
+            except queue.Empty:
+                self.log("   -> Scan failed on second attempt.")
+
+        return scanned_barcode
+
+    # --- Scale interaction ---
+
+    def _place_vial_on_scale(self, nest_params, scale_dropoff, scale_dropoff_approach, gripper_open_bal, user_name):
+        robot_params = APP_CONFIG.get("robot_params", {})
+        scale_vel = robot_params.get("cart_lin_vel_scale", 50)
+        travel_vel = robot_params.get("cart_lin_vel", 400)
+
+        if not self.scale.open_doors(self, user_name):
+            raise ProcessCancelledError("Process ended due to door failure.")
+        self._check_for_events()
+
+        self.robot.SetCartLinVel(scale_vel)
+        self._move_pose(scale_dropoff_approach)
+        self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
+        self._move_lin(scale_dropoff)
+        self._move_gripper(gripper_open_bal, .5)
+        self._move_lin(scale_dropoff_approach)
+        self._move_pose(nest_params['intermediate_pose_3'])
+        self.robot.SetCartLinVel(travel_vel)
+
+        if not self.scale.close_doors(self, user_name):
+            raise ProcessCancelledError("User chose to end the process due to door failure.")
+        self._check_for_events()
+        self.log("Waiting 3 seconds for air currents and vibrations to settle...")
+        self._smart_sleep(3)
+
+    def _pick_vial_from_scale(self, nest_params, scale_pickup, scale_pickup_approach, gripper_close_bal, user_name):
+        robot_params = APP_CONFIG.get("robot_params", {})
+        scale_vel = robot_params.get("cart_lin_vel_scale", 50)
+        travel_vel = robot_params.get("cart_lin_vel", 400)
+
+        if not self.scale.open_doors(self, user_name):
+            raise ProcessCancelledError("User chose to end the process due to door failure.")
+        self._check_for_events()
+
+        self.robot.SetCartLinVel(scale_vel)
+        self._move_pose(scale_pickup_approach)
+        self._move_lin(scale_pickup)
+        self._move_gripper(gripper_close_bal, .5)
+        self._move_lin(scale_pickup_approach)
+        self._move_pose(nest_params['intermediate_pose_3'])
+        self.robot.SetCartLinVel(travel_vel)
+
+    def _weigh_vial_with_recovery(self, nest_params, scale_dropoff, scale_dropoff_approach,
+                                   scale_pickup, scale_pickup_approach,
+                                   gripper_open_bal, gripper_close_bal, user_name):
+        """Gets a stable weight, running a recovery loop if the first attempt fails.
+        Returns (weight, unit)."""
+        stable_weight, stable_unit = self.scale.get_stable_weight()
+        self._check_for_events()
+
+        if stable_weight is not None:
+            return stable_weight, stable_unit
+
+        log_message = "Initial weight measurement failed. Starting recovery process."
+        self.log(log_message)
+        self.root.after(0, self.send_gchat_notification, log_message, user_name)
+
+        while True:
+            self.log("   -> Picking up vial to reset scale...")
+            self._pick_vial_from_scale(nest_params, scale_pickup, scale_pickup_approach, gripper_close_bal, user_name)
+
+            if not self.scale.close_doors(self, user_name):
+                raise ProcessCancelledError("User chose to end the process due to door failure.")
+            self._check_for_events()
+            self._smart_sleep(1)
+
+            self.log("   -> Resetting the scale...")
+            self.scale.power_on_or_reset()
+            self._check_for_events()
+            self.scale.tare()
+            self._check_for_events()
+
+            self.log("   -> Placing vial back on the scale...")
+            self._place_vial_on_scale(nest_params, scale_dropoff, scale_dropoff_approach, gripper_open_bal, user_name)
+
+            self.log("   -> Retrying to get stable weight after reset...")
+            stable_weight, stable_unit = self.scale.get_stable_weight()
+            self._check_for_events()
+
+            if stable_weight is not None:
+                log_message = "Stable weight obtained. Reset successful"
+                self.log(log_message)
+                self.root.after(0, self.send_gchat_notification, log_message, user_name)
+                return stable_weight, stable_unit
+
+            self.log("  <- Failed to get stable weight after recovery. Prompting user...")
+            notification_message = "Weighing failed after recovery. Process is paused pending user input."
+            self.root.after(0, self.send_gchat_notification, notification_message, user_name)
+            should_retry = self.safe_askretrycancel(
+                "Weighing Failed",
+                "Could not get a stable weight after resetting the scale.\n\nDo you want to retry the entire recovery process?"
+            )
+            if should_retry:
+                self.log("-> User chose to RETRY the recovery process.")
+            else:
+                cancel_message = "User cancelled the process after failed weight measurement."
+                self.log(f"!!! {cancel_message}")
+                self.root.after(0, self.send_gchat_notification, cancel_message, user_name)
+                raise ProcessCancelledError(cancel_message)
+
+    # --- Concurrent tare ---
+
+    def _concurrent_tare(self, cancel_evt, user_name):
+        try:
+            if cancel_evt.is_set():
+                return
+            if not self.scale.close_doors(self, user_name):
+                self.log("ERROR: Door failure during concurrent tare.")
+                return
+
+            self.log("Waiting for air currents and vibrations to settle before taring...")
+            for _ in range(30):
+                if cancel_evt.is_set():
+                    return
+                time.sleep(0.1)
+
+            if cancel_evt.is_set():
+                return
+            stable_weight, _ = self.scale.get_stable_weight()
+            if stable_weight is None:
+                self.log("Warning: Could not get stable weight prior to tare. Proceeding anyway.")
+
+            if cancel_evt.is_set():
+                return
+            if not self.scale.tare():
+                self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
+            for _ in range(10):
+                if cancel_evt.is_set():
+                    return
+                time.sleep(0.1)
+        except Exception as e:
+            self.log(f"Concurrent tare error: {e}")
+
+    # --- Cancel recovery ---
+
+    def _safe_cancel_recovery(self, gripper_open_dist):
+        if not (self.robot and self.robot.IsConnected()):
+            return
+        try:
+            self.robot.WaitIdle()
+            self.log("Opening gripper...")
+            self.robot.MoveGripper(gripper_open_dist)
+            self.robot.WaitIdle()
+
+            self.log("Retracting linearly upwards to clear obstacles...")
+            try:
+                current_pose = self.robot.GetPose()
+                if current_pose:
+                    safe_z_pose = list(current_pose)
+                    safe_z_pose[2] += 50.0
+                    self.robot.MoveLin(*safe_z_pose)
+                    self.robot.WaitIdle()
+            except mdr.MecademicException as e_pose:
+                self.log(f"Warning: Could not perform linear retraction: {e_pose}")
+
+            self.log("Moving to final home position...")
+            self.robot.MoveJoints(*self.common_params["home_position_joints"])
+            self.robot.WaitIdle()
+            self.log("-> Robot returned to home position safely.")
+        except mdr.MecademicException as move_err:
+            self.log(f"Could not perform safe return after cancel: {move_err}")
+
+    # --- Disconnect helpers ---
+
+    def _disconnect_all(self, user_name):
+        try:
+            if self.robot and self.robot.IsConnected():
+                self.log("Disconnecting robot...")
+                self.robot.DeactivateRobot()
+                self.robot.Disconnect()
+                self.log("-> Disconnected.")
+        except Exception as e:
+            self.log(f"Error during robot disconnect: {e}")
+        try:
+            if self.scale and self.scale.connection:
+                self.log("Disconnecting Scale...")
+                self.scale.close_doors(self, user_name)
+                self.scale.disconnect()
+        except Exception as e:
+            self.log(f"Error during scale disconnect: {e}")
+        try:
+            if self.arduino and self.arduino.connection:
+                self.log("Disconnecting Arduino...")
+                self.arduino.close()
+                self.log("-> Arduino Disconnected.")
+        except Exception as e:
+            self.log(f"Error during Arduino disconnect: {e}")
+
+    # --- Main orchestrator ---
+
     def robot_task(self, tasks, user_name):
-        self.cycle_count = 0  # for checking if the scale needs an adjustment every x cycles
-        self.robot = mdr.Robot() # sets classes to be called on
-        self.arduino = ArduinoController(port=self.common_params["ARDUINO_PORT"], baudrate=115200)
-        self.scale = MettlerToledoController(port=self.common_params["SCALE_PORT"], log_callback=self.log,arduino_controller=self.arduino, app_instance=self)
+        self.cycle_count = 0
+        self.robot = mdr.Robot()
+        self.arduino = ArduinoController(port=self.common_params["ARDUINO_PORT"], baudrate=115200, log_callback=self.log)
+        self.scale = MettlerToledoController(port=self.common_params["SCALE_PORT"], log_callback=self.log, arduino_controller=self.arduino, app_instance=self)
         csv_filepath = None
         tare_thread = None
-        
-        def check_for_events():
-            self.pause_event.wait()
-            if self.cancel_event.is_set(): raise ProcessCancelledError("Process cancelled by user.")
-            
-        def smart_sleep(duration):
-            start = time.time()
-            while time.time() - start < duration:
-                check_for_events()
-                time.sleep(min(0.1, duration - (time.time() - start)))
-
-        def move_pose(pose):
-            self.robot.MovePose(*pose); self.robot.WaitIdle(); check_for_events()
-
-        def move_lin(pose):
-            self.robot.MoveLin(*pose); self.robot.WaitIdle(); check_for_events()
-
-        def move_joints(joints):
-            self.robot.MoveJoints(*joints); self.robot.WaitIdle(); check_for_events()
-
-        def move_gripper(dist, sleep_time=0.0):
-            self.robot.MoveGripper(dist); self.robot.WaitIdle(); check_for_events()
-            if sleep_time > 0: smart_sleep(sleep_time)
+        gripper_open_nest = APP_CONFIG.get("robot_params", {}).get("gripper_range", [3, 5.8])[0]
 
         try:
-            self.log(f"Connecting..."); self.robot.Connect(address=self.common_params["ROBOT_IP"]); check_for_events()
-            self.robot.ActivateRobot(); check_for_events()
-            self.robot.Home(); check_for_events()
-            self.log("-> Robot Homed and Activated.")
-
-            torque_limit = 50  # reduces force required to error to minimize damage if it hits something
-            self.robot.SetTorqueLimitsCfg(4, 1) # Error on torque limit, detect always
-            self.robot.SetTorqueLimits(torque_limit, torque_limit, torque_limit, torque_limit, torque_limit, torque_limit)
-            self.log(f"-> Torque limits set to {torque_limit}% for all joints.")
-
-            # Enable force detection of the grippers and limit this force to 5%
-            self.robot.SetGripperForce(5)
-            self.log("-> Gripper force detection enabled and limited to 5%.")
-
-            # Limit the speed of the grippers
-            self.robot.SetGripperVel(10)
-            self.log("-> Gripper speed limited to 10%")
-
-            # Set Gripper Range
-            self.robot.SetGripperRange(3,5.8)
-            self.log("-> Set the grippers range from 3. 5.8")
-            
-            # SetJointVel: specifies desired velocity of joints during MovePose and MoveJoints commands
-            # SetJointAcc: sets acc limit of MovePose and MoveJoints
-            # SetCartLinVel: sets desird and max velocity of MovLin Movemennts
-            self.robot.SetJointVel(80); self.robot.SetJointAcc(75); self.robot.SetCartLinVel(400) 
-
+            self._connect_and_configure_robot()
 
             self.log("Connecting to and initializing the scale...")
             if not self.scale.connect():
                 raise ConnectionError("Failed to connect to the Mettler Toledo scale.")
-            check_for_events()
-            
+            self._check_for_events()
+
             self.scale.power_on_or_reset()
-            #self.scale.zero()
-            check_for_events()
+            self._check_for_events()
             self.log("-> Scale Initialized and Zeroed.")
-            
+
             for nest_params in tasks:
-                self.log(f"\n********** STARTING {nest_params['name']} with {nest_params['rack_name']} **********"); check_for_events()
-                
-                # On starting a Nest 3 task, move to the safety position first.
+                self.log(f"\n********** STARTING {nest_params['name']} with {nest_params['rack_name']} **********")
+                self._check_for_events()
+
                 if nest_params['name'] == 'Nest 3':
                     self.log("   -> Moving to Nest 3 safety position to begin task.")
-                    move_joints(nest_params["intermediate_pose_nest3_safety"])
+                    self._move_joints(nest_params["intermediate_pose_nest3_safety"])
 
-                # Json parameters and position parameters
                 GRIPPER_OPEN_NEST = nest_params.get('gripper_open_dist', 3.5)
                 GRIPPER_CLOSED_NEST = nest_params.get('gripper_close_dist', 1.25)
                 GRIPPER_OPEN_BAL = nest_params.get('gripper_open_dist_bal', 5.8)
                 GRIPPER_CLOSED_BAL = nest_params.get('gripper_close_dist_bal', 0.75)
                 LIFT_UP_MM = nest_params.get('lift_up_mm', 50.0)
-                INCREMENT_1X = nest_params.get('increment_1x_mm', -9.0)
-                INCREMENT_1Y = nest_params.get('increment_1y_mm', 9.0)
-                INCREMENT_2X = nest_params.get('increment_2x_mm', -9.0)
-                INCREMENT_2Y = nest_params.get('increment_2y_mm', 9.0)
-                INCREMENT_3X = nest_params.get('increment_3x_mm', -9.0)
-                INCREMENT_3Y = nest_params.get('increment_3y_mm', 9.0)
                 RESET_INTERVAL = nest_params.get('row_reset_interval', 8)
                 scale_dropoff = nest_params.get("scale_dropoff", [-0.768729, 262.21615, 130, -90, -0.16875, 90])
                 scale_pickup = nest_params.get("scale_pickup", [-0.768729, 262.21615, 127, -90, -0.16875, 90])
@@ -739,393 +992,186 @@ class RobotUiApp:
                 RACK_NAME = nest_params.get('file_label')
                 base_pose = nest_params['base_pose']
                 home_position_joints = nest_params['home_position_joints']
+                gripper_open_nest = GRIPPER_OPEN_NEST
 
-                dynamic_scanner_pose = list(nest_params['scanner_pose']) #changes scanner z based on json
+                dynamic_scanner_pose = list(nest_params['scanner_pose'])
                 if 'scanner_z_position' in nest_params:
                     dynamic_scanner_pose[2] = nest_params['scanner_z_position']
                     self.log(f"   -> Using custom scanner Z-position: {dynamic_scanner_pose[2]}")
 
-                move_gripper(GRIPPER_OPEN_BAL, 1.5)
-                
-                move_gripper(GRIPPER_OPEN_NEST, 1.5)
+                self._move_gripper(GRIPPER_OPEN_BAL, 1.5)
+                self._move_gripper(GRIPPER_OPEN_NEST, 1.5)
 
                 file_path = nest_params["CSV_FILE_PATH"]
                 rack_barcode = nest_params["rack_barcode"]
                 timestamp_str = datetime.now().strftime("%Y.%m.%d_%H.%M")
                 csv_filepath = os.path.join(file_path, f"{RACK_NAME}_{rack_barcode}_{timestamp_str}.csv")
                 os.makedirs(file_path, exist_ok=True)
-                
+
                 with open(csv_filepath, 'a', newline='', encoding='utf-8') as csvfile:
                     writer = csv.writer(csvfile)
-                    if os.path.getsize(csv_filepath) == 0: writer.writerow(self.scanner_params["CSV_HEADER"])
-                    
+                    if os.path.getsize(csv_filepath) == 0:
+                        writer.writerow(self.scanner_params["CSV_HEADER"])
+
                     start_index, end_index = nest_params["start_index"], nest_params["end_index"]
                     last_completed_pose = None
+                    scale_dropoff_approach = list(scale_dropoff); scale_dropoff_approach[2] = 200
+                    scale_pickup_approach = list(scale_pickup); scale_pickup_approach[2] = 200
 
                     for i in range(start_index, end_index + 1):
-                        self.log(f"--- CYCLE for Vial {index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)} ({nest_params['name']}) ---"); check_for_events()
-                        
-                        group_number, step_in_group = divmod(i, RESET_INTERVAL)
-                        current_target_pose = list(base_pose)
-                        
-                        if nest_params['name'] == 'Nest 1':
-                            x_offset = step_in_group * INCREMENT_1X
-                            y_offset = group_number * INCREMENT_1Y
-                            current_target_pose[0] += x_offset
-                            current_target_pose[1] -= y_offset 
-                        elif nest_params['name'] == 'Nest 2':
-                            y_offset = step_in_group * INCREMENT_2Y
-                            x_offset = group_number * INCREMENT_2X
-                            current_target_pose[1] += y_offset
-                            current_target_pose[0] += x_offset
-                        elif nest_params['name'] == 'Nest 3':
-                            x_offset = step_in_group * INCREMENT_3X
-                            y_offset = group_number * INCREMENT_3Y
-                            current_target_pose[0] -= x_offset 
-                            current_target_pose[1] += y_offset 
+                        vial_coord = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
+                        self.log(f"--- CYCLE for Vial {vial_coord} ({nest_params['name']}) ---")
+                        self._check_for_events()
 
-                        scale_dropoff_approach = list(scale_dropoff); scale_dropoff_approach[2] = 200
-                        scale_pickup_approach = list(scale_pickup); scale_pickup_approach[2] = 200
-
+                        current_target_pose = calculate_vial_pose(base_pose, nest_params['name'], i, nest_params, RESET_INTERVAL)
                         approach_pose = list(current_target_pose); approach_pose[2] += LIFT_UP_MM
                         retry_approach_pose = list(current_target_pose); retry_approach_pose[2] += RETRY_APPROACH_MM
-                       
+
+                        # Lift off from previous vial position
                         if last_completed_pose is not None:
                             lift_off_pose = list(last_completed_pose); lift_off_pose[2] += LIFT_UP_MM
-                            move_lin(lift_off_pose)
+                            self._move_lin(lift_off_pose)
 
-                        move_pose(approach_pose)
-                        move_lin(current_target_pose)
-                        move_gripper(GRIPPER_CLOSED_NEST) 
+                        # Pick up vial from rack
+                        self._move_pose(approach_pose)
+                        self._move_lin(current_target_pose)
+                        self._move_gripper(GRIPPER_CLOSED_NEST)
+                        self._move_lin(approach_pose)
 
-                        
-                        move_lin(approach_pose)
+                        # Navigate to scanner
+                        self._move_to_nest3_safety(nest_params, "Moving to Nest 3 safety position before proceeding.")
+                        self._move_joints(home_position_joints)
+                        self._move_pose(dynamic_scanner_pose)
 
-                        # MoveLin is for precision movements that require a straight path
-                        # MovePose is for path movements that dont need to be perfect as they tend to have curvature in the movement
-                        # MoveJoints tells the joint was angles to be in rather than a coordinate
+                        # Scan barcode (with retry)
+                        scanned_barcode = self._scan_barcode_with_retry(
+                            nest_params, approach_pose, current_target_pose, retry_approach_pose,
+                            GRIPPER_OPEN_NEST, GRIPPER_CLOSED_NEST, home_position_joints, dynamic_scanner_pose
+                        )
 
-                        # If leaving from Nest 3, move to a specific safety pose first.
-                        if nest_params['name'] == 'Nest 3':
-                            self.log("   -> Moving to Nest 3 safety position before proceeding.")
-                            move_joints(nest_params["intermediate_pose_nest3_safety"])
+                        if scanned_barcode is None:
+                            # Both scan attempts failed — return vial and skip
+                            self.log("   -> Scan failed on second attempt. Returning vial and skipping.")
+                            self._move_joints(home_position_joints)
+                            self._move_to_nest3_safety(nest_params, "(Failed Scan) Moving to Nest 3 safety position before returning vial.")
+                            self._move_pose(approach_pose)
+                            self._move_lin(retry_approach_pose)
+                            self._move_gripper(GRIPPER_OPEN_NEST)
 
-                        move_joints(home_position_joints)
-                        move_pose(dynamic_scanner_pose)
-                        
-                        scanned_barcode = None
-                        try: ## if he scan fails it drops the vial back off in it original spot and picks it back up to try and scan again
-                            self.log("   -> Waiting for barcode scan (Attempt 1/2)...")
-                            scanned_barcode = self.barcode_queue.get(timeout=4)
-                        except queue.Empty:
-                            self.log("   -> Scan timed out. Returning vial to re-grip for second attempt.")
-                            
-                            move_joints(home_position_joints)
-                            
-                            if nest_params['name'] == 'Nest 3':
-                                self.log("   -> (Retry) Moving to Nest 3 safety position before re-gripping.")
-                                move_joints(nest_params["intermediate_pose_nest3_safety"])
-                            
-                            move_pose(approach_pose)
-                            move_lin(retry_approach_pose)
-                            move_gripper(GRIPPER_OPEN_NEST); 
-                            move_lin(current_target_pose)
-                            move_gripper(GRIPPER_CLOSED_NEST, .2)
-
-                              
-                        
-                            move_lin(approach_pose)
-                            
-                            if nest_params['name'] == 'Nest 3':
-                                self.log("   -> (Retry) Moving to Nest 3 safety position before proceeding to scanner.")
-                                move_joints(nest_params["intermediate_pose_nest3_safety"])
-
-                            move_joints(home_position_joints)
-                            move_pose(dynamic_scanner_pose)
-                            
-                            try:  ### if the scan fails a second time then it puts it backin its original spot and got to the next position
-                                self.log("   -> Waiting for barcode scan (Attempt 2/2)...")
-                                scanned_barcode = self.barcode_queue.get(timeout=4)
-                            except queue.Empty:
-                                self.log("   -> Scan failed on second attempt. Returning vial and skipping.")
-
-                                move_joints(home_position_joints)
-                                
-                                if nest_params['name'] == 'Nest 3':
-                                    self.log("   -> (Failed Scan) Moving to Nest 3 safety position before returning vial.")
-                                    move_joints(nest_params["intermediate_pose_nest3_safety"])
-
-                                move_pose(approach_pose)
-                                move_lin(retry_approach_pose)
-                                move_gripper(GRIPPER_OPEN_NEST)
-
-                                vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
-                                writer.writerow([vial_coordinate, "Vial Not Found"]); csvfile.flush()
-                                self.root.after(0, self.send_gchat_notification, f"Vial not found at {nest_params['name']} - {vial_coordinate}", user_name)
-                                last_completed_pose = current_target_pose
-                                continue 
-
-                        if scanned_barcode:
-
-                            # Increment cycle counter at the start of a valid cycle, Starts process with an adjustment check
-                            self.cycle_count += 1
-                            self.log(f"--- Starting Cycle #{self.cycle_count} ---")
-
-                            # Join the concurrent tare thread from the previous cycle before interacting with the scale
-                            if tare_thread is not None and tare_thread.is_alive():
-                                self.log("Waiting for scale to finish concurrent tare from previous cycle...")
-                                while tare_thread.is_alive():
-                                    check_for_events()
-                                    time.sleep(0.1)
-
-                            # Check if it's time for a scale adjustment
-                            if self.cycle_count == 1 or self.cycle_count % 10 == 0:
-                               self.log(f"Cycle {self.cycle_count} is a multiple of 10. Performing scale adjustment check.")
-                               if not self.scale.scale_adjustment_check(self, user_name):
-                                   # Define the message for the user
-                                   popup_message = "Manual scale adjustment required.\n\nPress OK when completed, or Cancel to stop the process."
-                                   # Log the event and send a notification
-                                   self.log(popup_message)
-                                   self.root.after(0, self.send_gchat_notification, "Manual scale adjustment required. Process is paused.", user_name)
-                                   # PAUSE and show a popup. Code execution will stop here until the user clicks "OK".
-                                   user_choice = self.safe_askokcancel("Manual Adjustment Required 🔧", popup_message)
-                                   # Handle the choice. If user clicks "Cancel" (user_choice is False)...
-                                   if not user_choice:
-                                     cancel_message = "Process cancelled by user during manual scale adjustment."
-                                     self.log(cancel_message)
-                                     self.root.after(0, self.send_gchat_notification, cancel_message, user_name)
-                                     raise ProcessCancelledError(cancel_message)
-                            self.log("Scale adjustment check complete. Resuming operations.")
-                            check_for_events() # Assuming you want to check for events after this pause
-
-                            # One-time tare before loading the first vial
-                            if self.cycle_count == 1:
-                                self.log("Closing doors to prepare for one-time initial tare...")
-                                if not self.scale.close_doors(self, user_name):
-                                    raise ProcessCancelledError("process ended due to door failure.") 
-                                
-                                self.log("Waiting for air currents and vibrations to settle before initial taring...")
-                                check_for_events(); smart_sleep(3)
-                                
-                                stable_weight, _ = self.scale.get_stable_weight()
-                                if stable_weight is None:
-                                    self.log("Warning: Could not get stable weight prior to initial tare. Proceeding anyway.")
-                                
-                                if not self.scale.tare():
-                                    self.log("Warning: Initial tare operation failed. Proceeding, but weight may be inaccurate.")
-                                check_for_events(); smart_sleep(1)
-                            
-                            vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
-                            self.log(f"   -> Scan received: {scanned_barcode} for vial {vial_coordinate}. Resuming...")
-                            
-                            move_pose(nest_params['intermediate_pose_2'])
-                            move_pose(nest_params['intermediate_pose_3'])
-
-                            # if doors don't open process will be canceled -- this is just a last resort as the function has many error precautions
-                            if not self.scale.open_doors(self, user_name):
-                              raise ProcessCancelledError("Process ended due to door failure.") 
-                            check_for_events()
-
-                            # Moves vial into scale
-                            # I put a timestamp here as an inital time test for opening the doors but now i left it just to see how long it takes to cycle through
-                            self.robot.SetCartLinVel(50) ## Drastically reduce speed before entering the draft shield to prevent aerodynamic turbulence
-                            move_pose(scale_dropoff_approach); self.log(f"Arm started moving ... Timestamp: {datetime.now().time()}")
-                            move_lin(scale_dropoff)
-                            move_gripper(GRIPPER_OPEN_BAL, .5)
-                            move_lin(scale_dropoff_approach)
-                            move_pose(nest_params['intermediate_pose_3'])
-                            self.robot.SetCartLinVel(400) ## Restore travel speed when fully outside the draft shield
-                            
-                            if not self.scale.close_doors(self, user_name):
-                              raise ProcessCancelledError("User chose to end the process due to door failure.")
-                            check_for_events()
-                            self.log("Waiting 3 seconds for air currents and vibrations to settle...")
-                            smart_sleep(3) # Increased settling time for higher precision
-
-                            # get a stable weight
-                            stable_weight, stable_unit = self.scale.get_stable_weight();check_for_events()
-                            #If the initial attempt fails, start the recovery and retry loop
-                            if stable_weight is None:
-                                log_message = "Initial weight measurement failed. Starting recovery process."
-                                self.log(log_message)
-                                self.root.after(0, self.send_gchat_notification, log_message, user_name)
-                                                            
-                                while True: # This loop handles retries prompted by the user
-                                    # --------------------------------------------------------------------
-                                    # A. RECOVERY SEQUENCE: Pick up vial, reset scale, place vial back
-                                    # --------------------------------------------------------------------
-                                    self.log("   -> Picking up vial to reset scale...")
-
-                                    if not self.scale.open_doors(self, user_name):
-                                        raise ProcessCancelledError("Process ended due to door failure.")
-                                    check_for_events()
-
-                                    self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
-                                    move_pose(scale_pickup_approach)
-                                    move_lin(scale_pickup)
-                                    move_gripper(GRIPPER_CLOSED_BAL, .5)
-                                    move_lin(scale_pickup_approach)
-                                    move_pose(nest_params['intermediate_pose_3'])
-                                    self.robot.SetCartLinVel(400) ## Restore travel speed
-                                    
-                                    if not self.scale.close_doors(self, user_name):
-                                        raise ProcessCancelledError("User chose to end the process due to door failure.")
-                                    check_for_events(); smart_sleep(1)
-
-                                    self.log("   -> Resetting the scale...")
-                                    self.scale.power_on_or_reset(); check_for_events()
-                                    self.scale.tare(); check_for_events()
-
-                                    if not self.scale.open_doors(self, user_name):
-                                        raise ProcessCancelledError("Process ended due to door failure.")
-                                    check_for_events()
-
-                                    self.log("   -> Placing vial back on the scale...")
-                                    self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
-                                    move_pose(scale_dropoff_approach)
-                                    move_lin(scale_dropoff)
-                                    move_gripper(GRIPPER_OPEN_BAL, .5)
-                                    move_lin(scale_dropoff_approach)
-                                    move_pose(nest_params['intermediate_pose_3'])
-                                    self.robot.SetCartLinVel(400) ## Restore travel speed
-
-                                    if not self.scale.close_doors(self, user_name): # Corrected call
-                                        raise ProcessCancelledError("User chose to end the process due to door failure.")
-                                    check_for_events()
-                                    self.log("Waiting 3 seconds for air currents and vibrations to settle...")
-                                    smart_sleep(3) # Increased settling time for higher precision                                    
-                                    # --------------------------------------------------------------------
-                                    # B. RETRY WEIGHING: Attempt to get weight after recovery
-                                    # --------------------------------------------------------------------
-                                    self.log("   -> Retrying to get stable weight after reset...")
-                                    stable_weight, stable_unit = self.scale.get_stable_weight()
-                                    check_for_events()
-
-                                    if stable_weight is not None:
-                                        log_message = "Stable weight obtained. Reset successful"
-                                        self.log(log_message)
-                                        self.root.after(0, self.send_gchat_notification, log_message, user_name)
-                                        break # Success! Exit the recovery loop.
-
-                                   # C. PROMPT USER: If retry fails, ask the user what to do
-                                    # --------------------------------------------------------------------
-                                    self.log("  <- Failed to get stable weight after recovery. Prompting user...")
-                                    # 1. Define the message and send a GChat notification
-                                    popup_title = "Weighing Failed"
-                                    popup_message = "Could not get a stable weight after resetting the scale.\n\nDo you want to retry the entire recovery process?"
-                                    notification_message = "Weighing failed after recovery. Process is paused pending user input."
-                                    self.root.after(0, self.send_gchat_notification, notification_message, user_name)
-                                    # 2. Show the popup and wait for the user's choice
-                                    should_retry = self.safe_askretrycancel(popup_title, popup_message)
-                                    # 3. Handle the user's choice
-                                    if should_retry:
-                                        # If the user clicks "Retry", log it and the 'while' loop will continue.
-                                        self.log("-> User chose to RETRY the recovery process.")
-                                    else:
-                                        # If the user clicks "Cancel", log it and raise an error to stop everything.
-                                        cancel_message = "User cancelled the process after failed weight measurement."
-                                        self.log(f"!!! {cancel_message}")
-                                        self.root.after(0, self.send_gchat_notification, cancel_message, user_name)
-                                        raise ProcessCancelledError(cancel_message)
-                                    # If the code reaches this point, the user chose to retry, and the loop continues.
-                            # 3. Write data to CSV 
-                            vial_coordinate = index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)
-                            writer.writerow([vial_coordinate, scanned_barcode, f"{stable_weight:.5f}" if stable_weight is not None else "N/A", stable_unit or "N/A"])
+                            writer.writerow([vial_coord, "Vial Not Found"])
                             csvfile.flush()
+                            self.root.after(0, self.send_gchat_notification, f"Vial not found at {nest_params['name']} - {vial_coord}", user_name)
+                            last_completed_pose = current_target_pose
+                            continue
 
-                            if not self.scale.open_doors(self, user_name):
-                              raise ProcessCancelledError("User chose to end the process due to door failure.") 
-                            check_for_events()
-                            
-                            #picks vial up from scale and moves back to original postion
-                            self.robot.SetCartLinVel(50) ## Drastically reduce speed inside draft shield
-                            move_pose(scale_pickup_approach)
-                            move_lin(scale_pickup)
-                            move_gripper(GRIPPER_CLOSED_BAL, .5)                            
-                            move_lin(scale_pickup_approach)
-                            move_pose(nest_params['intermediate_pose_3'])
-                            self.robot.SetCartLinVel(400) ## Restore travel speed
-                            
-                            # Close doors and tare the scale for the NEXT vial concurrently (skip if this is the last vial)
-                            if i < end_index:
-                                def concurrent_tare():
-                                    try:
-                                        if not self.scale.close_doors(self, user_name):
-                                            self.log("ERROR: Door failure during concurrent tare.")
-                                            return
-                                        
-                                        self.log("Waiting for air currents and vibrations to settle before taring...")
-                                        time.sleep(3) # Wait for physical settling
-                                        
-                                        # Ensure internal stability before taring
-                                        stable_weight, _ = self.scale.get_stable_weight()
-                                        if stable_weight is None:
-                                            self.log("Warning: Could not get stable weight prior to tare. Proceeding anyway.")
-                                            
-                                        if not self.scale.tare():
-                                            self.log("Warning: Tare operation failed. Proceeding, but weight may be inaccurate.")
-                                        time.sleep(1)
-                                    except Exception as e:
-                                        self.log(f"Concurrent tare error: {e}")
+                        # Valid scan — proceed with weighing cycle
+                        self.cycle_count += 1
+                        self.log(f"--- Starting Cycle #{self.cycle_count} ---")
 
-                                self.log("Starting background thread to close doors and tare scale for the next vial...")
-                                tare_thread = threading.Thread(target=concurrent_tare, daemon=True)
-                                tare_thread.start()
+                        # Wait for any concurrent tare from the previous cycle
+                        if tare_thread is not None and tare_thread.is_alive():
+                            self.log("Waiting for scale to finish concurrent tare from previous cycle...")
+                            while tare_thread.is_alive():
+                                self._check_for_events()
+                                time.sleep(0.1)
 
-                            move_pose(nest_params['intermediate_pose_2'])
-                            move_joints(home_position_joints)
+                        # Periodic scale adjustment check
+                        if self.cycle_count == 1 or self.cycle_count % 10 == 0:
+                            self.log(f"Cycle {self.cycle_count} is a multiple of 10. Performing scale adjustment check.")
+                            if not self.scale.scale_adjustment_check(self, user_name):
+                                popup_message = "Manual scale adjustment required.\n\nPress OK when completed, or Cancel to stop the process."
+                                self.log(popup_message)
+                                self.root.after(0, self.send_gchat_notification, "Manual scale adjustment required. Process is paused.", user_name)
+                                user_choice = self.safe_askokcancel("Manual Adjustment Required", popup_message)
+                                if not user_choice:
+                                    cancel_message = "Process cancelled by user during manual scale adjustment."
+                                    self.log(cancel_message)
+                                    self.root.after(0, self.send_gchat_notification, cancel_message, user_name)
+                                    raise ProcessCancelledError(cancel_message)
+                        self.log("Scale adjustment check complete. Resuming operations.")
+                        self._check_for_events()
 
-                            if nest_params['name'] == 'Nest 3':
-                                self.log("   -> Moving to Nest 3 safety position before returning vial from scale.")
-                                move_joints(nest_params["intermediate_pose_nest3_safety"])
+                        # One-time initial tare before the first vial
+                        if self.cycle_count == 1:
+                            self.log("Closing doors to prepare for one-time initial tare...")
+                            if not self.scale.close_doors(self, user_name):
+                                raise ProcessCancelledError("process ended due to door failure.")
+                            self.log("Waiting for air currents and vibrations to settle before initial taring...")
+                            self._check_for_events()
+                            self._smart_sleep(3)
+                            stable_weight, _ = self.scale.get_stable_weight()
+                            if stable_weight is None:
+                                self.log("Warning: Could not get stable weight prior to initial tare. Proceeding anyway.")
+                            if not self.scale.tare():
+                                self.log("Warning: Initial tare operation failed. Proceeding, but weight may be inaccurate.")
+                            self._check_for_events()
+                            self._smart_sleep(1)
 
-                            move_pose(approach_pose)
-                            self.robot.SetCartLinVel(400)
-                            move_lin(current_target_pose)
-                            move_gripper(GRIPPER_OPEN_NEST)
+                        scanned_barcode = sanitize_csv_value(scanned_barcode)
+                        self.log(f"   -> Scan received: {scanned_barcode} for vial {vial_coord}. Resuming...")
 
-                            last_completed_pose = self.robot.GetPose()
-                            self.log("   -> Cycle complete.\n"); smart_sleep(.5)
+                        # Move to scale area
+                        self._move_pose(nest_params['intermediate_pose_2'])
+                        self._move_pose(nest_params['intermediate_pose_3'])
+
+                        # Place vial on scale and weigh
+                        self._place_vial_on_scale(nest_params, scale_dropoff, scale_dropoff_approach, GRIPPER_OPEN_BAL, user_name)
+                        stable_weight, stable_unit = self._weigh_vial_with_recovery(
+                            nest_params, scale_dropoff, scale_dropoff_approach,
+                            scale_pickup, scale_pickup_approach,
+                            GRIPPER_OPEN_BAL, GRIPPER_CLOSED_BAL, user_name
+                        )
+
+                        # Write data to CSV
+                        writer.writerow([
+                            vial_coord, scanned_barcode,
+                            f"{stable_weight:.5f}" if stable_weight is not None else "N/A",
+                            stable_unit or "N/A"
+                        ])
+                        csvfile.flush()
+
+                        # Pick vial up from scale
+                        self._pick_vial_from_scale(nest_params, scale_pickup, scale_pickup_approach, GRIPPER_CLOSED_BAL, user_name)
+
+                        # Start concurrent tare for the next vial
+                        if i < end_index:
+                            self.log("Starting background thread to close doors and tare scale for the next vial...")
+                            tare_thread = threading.Thread(target=self._concurrent_tare, args=(self.cancel_event, user_name), daemon=True)
+                            tare_thread.start()
+
+                        # Return vial to rack
+                        self._move_pose(nest_params['intermediate_pose_2'])
+                        self._move_joints(home_position_joints)
+                        self._move_to_nest3_safety(nest_params, "Moving to Nest 3 safety position before returning vial from scale.")
+                        self._move_pose(approach_pose)
+                        self.robot.SetCartLinVel(APP_CONFIG.get("robot_params", {}).get("cart_lin_vel", 400))
+                        self._move_lin(current_target_pose)
+                        self._move_gripper(GRIPPER_OPEN_NEST)
+
+                        last_completed_pose = self.robot.GetPose()
+                        self.log("   -> Cycle complete.\n")
+                        self._smart_sleep(.5)
 
                     if last_completed_pose is not None:
                         self.log(f"-> Finished rack {nest_params['name']}. Lifting up before next task.")
                         lift_off_pose = list(last_completed_pose); lift_off_pose[2] += LIFT_UP_MM
-                        move_lin(lift_off_pose)
+                        self._move_lin(lift_off_pose)
 
             self.log("***** All selected tasks are complete. *****")
-            self.robot.MoveJoints(*self.common_params['home_position_joints']); self.robot.WaitIdle()
+            self.robot.MoveJoints(*self.common_params['home_position_joints'])
+            self.robot.WaitIdle()
             self.log("-> Robot is at final home position.")
             log_filepath = self.save_log_to_file()
             self.scale.close_doors(self, user_name)
             self.root.after(0, self.send_gchat_notification, "Process completed successfully", user_name, csv_filepath, log_filepath)
-        
-        ### error safe postion and move back to home
+
         except ProcessCancelledError as e:
-            self.log(str(e)); self.log("Aborting process...")
+            self.log(str(e))
+            self.log("Aborting process...")
             log_filepath = self.save_log_to_file("cancelled_process")
             self.root.after(0, self.send_gchat_notification, "Process was cancelled by the user", user_name, csv_filepath, log_filepath)
-            if self.robot and self.robot.IsConnected():
-                try:
-                    self.robot.WaitIdle()
-                    self.log("Opening gripper...")
-                    safe_gripper_open = locals().get('GRIPPER_OPEN_NEST', 2.7)
-                    self.robot.MoveGripper(safe_gripper_open); self.robot.WaitIdle()
-                    
-                    self.log("Retracting linearly upwards to clear obstacles...")
-                    try:
-                        current_pose = self.robot.GetPose()
-                        if current_pose:
-                            safe_z_pose = list(current_pose)
-                            safe_z_pose[2] += 50.0 # Move 50mm UP
-                            self.robot.MoveLin(*safe_z_pose); self.robot.WaitIdle()
-                    except mdr.MecademicException as e_pose:
-                        self.log(f"Warning: Could not perform linear retraction: {e_pose}")
+            self._safe_cancel_recovery(gripper_open_nest)
 
-                    self.log("Moving to final home position...")
-                    self.robot.MoveJoints(*self.common_params["home_position_joints"]); self.robot.WaitIdle()
-                    self.log("-> Robot returned to home position safely.")
-                except mdr.MecademicException as move_err:
-                    self.log(f"Could not perform safe return after cancel: {move_err}")
         except Exception as e:
             error_message = f"Robot has errored due crash or incorrect labware definitions. User involvement necessary: {e}"
             self.log(f"\n!!!!!!!! AN ERROR OCCURRED/ ARM HAS CRASHED !!!!!!!!\n{e}\n")
@@ -1134,15 +1180,6 @@ class RobotUiApp:
             self.root.after(0, self.show_error_popup)
 
         finally:
-         # Disconnect Robot
-         if self.robot and self.robot.IsConnected():
-           self.log("Disconnecting robot..."); self.robot.DeactivateRobot(); self.robot.Disconnect(); self.log("-> Disconnected.")
-         # Disconnect Scale
-         if self.scale and self.scale.connection:
-             self.log("Disconnecting Scale..."); self.scale.close_doors(self, user_name), self.scale.disconnect()
-         #  Disconnect Arduino
-         if self.arduino and self.arduino.connection:
-             self.log("Disconnecting Arduino..."); self.arduino.close(); self.log("-> Arduino Disconnected.")
-         # Update UI after all tasks are done
-         self.root.after(0, self.task_completed)
+            self._disconnect_all(user_name)
+            self.root.after(0, self.task_completed)
 

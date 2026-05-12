@@ -15,7 +15,7 @@ import glob
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from core.utils import ProcessCancelledError, coordinate_to_index, index_to_coordinate
+from core.utils import ProcessCancelledError, coordinate_to_index, index_to_coordinate, calculate_vial_pose
 from core.config import APP_CONFIG
 class RobotTrainingApp:
     def __init__(self, root):
@@ -219,25 +219,7 @@ class RobotTrainingApp:
                 for i in range(start_index, end_index + 1):
                     self.log(f"--- Testing Vial {index_to_coordinate(i, MAX_WELLS, RESET_INTERVAL)} ({nest_params['name']}) ---"); check_for_events()
                     
-                    group_number, step_in_group = divmod(i, RESET_INTERVAL)
-                    current_target_pose = list(base_pose)
-                    
-                    # Apply offsets based on nest
-                    if nest_params['name'] == 'Nest 1':
-                        x_offset = step_in_group * INCREMENT_1X
-                        y_offset = group_number * INCREMENT_1Y
-                        current_target_pose[0] += x_offset
-                        current_target_pose[1] -= y_offset 
-                    elif nest_params['name'] == 'Nest 2':
-                        y_offset = step_in_group * INCREMENT_2Y
-                        x_offset = group_number * INCREMENT_2X
-                        current_target_pose[1] += y_offset
-                        current_target_pose[0] += x_offset
-                    elif nest_params['name'] == 'Nest 3':
-                        x_offset = step_in_group * INCREMENT_3X
-                        y_offset = group_number * INCREMENT_3Y
-                        current_target_pose[0] -= x_offset 
-                        current_target_pose[1] += y_offset 
+                    current_target_pose = calculate_vial_pose(base_pose, nest_params['name'], i, nest_params, RESET_INTERVAL)
 
                     approach_pose = list(current_target_pose); approach_pose[2] += LIFT_UP_MM
                     

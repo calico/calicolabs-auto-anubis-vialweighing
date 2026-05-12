@@ -24,6 +24,16 @@ def load_config():
         },
         "notifications": {
             "gchat_webhook_url": ""
+        },
+        "robot_params": {
+            "torque_limit": 50,
+            "gripper_force": 5,
+            "gripper_vel": 10,
+            "gripper_range": [3, 5.8],
+            "joint_vel": 80,
+            "joint_acc": 75,
+            "cart_lin_vel": 400,
+            "cart_lin_vel_scale": 50
         }
     }
     
